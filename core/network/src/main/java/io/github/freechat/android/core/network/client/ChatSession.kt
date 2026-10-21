@@ -25,6 +25,7 @@ import io.github.freechat.android.core.model.FriendListSnapshot
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,16 +72,23 @@ class ChatSession(
     private val eventChannel = Channel<ChatEvent>(Channel.UNLIMITED)
     private val sendMutex = Mutex()
     private val pendingSends = ConcurrentHashMap<String, CompletableDeferred<SendResult>>()
+    private val closedDeferred = CompletableDeferred<Unit>()
     private val pendingFriends = ConcurrentHashMap<String, FriendAccumulator>()
 
     @Volatile
     private var subscribeDeferred: CompletableDeferred<Subscribed>? = null
 
     val events: Flow<ChatEvent> = eventChannel.receiveAsFlow()
+    val closed: Deferred<Unit> = closedDeferred
 
     init {
         scope.launch {
-            connection.incoming.collect { envelope -> route(envelope) }
+            try {
+                connection.incoming.collect { envelope -> route(envelope) }
+            } finally {
+                closedDeferred.complete(Unit)
+                eventChannel.close()
+            }
         }
     }
 
@@ -198,6 +206,7 @@ class ChatSession(
     }
 
     suspend fun close() {
+        closedDeferred.complete(Unit)
         scope.cancel()
         eventChannel.close()
         connection.close()
@@ -236,6 +245,7 @@ class ChatSession(
                 pendingFriends.values.forEach {
                     it.deferred.completeExceptionally(FriendListException.ConnectionClosed())
                 }
+                closedDeferred.complete(Unit)
                 eventChannel.close()
             }
         }
@@ -306,5 +316,6 @@ private fun PlayerInfo.toDomain(): FriendInfo = FriendInfo(
     freeCompanyTag = freeCompanyTag.takeIf { it.isNotBlank() },
     jobName = jobName.takeIf { it.isNotBlank() },
     territoryName = territoryName.takeIf { it.isNotBlank() },
+    statusBits = statusBits,
     identityUnavailable = identityUnavailable,
 )

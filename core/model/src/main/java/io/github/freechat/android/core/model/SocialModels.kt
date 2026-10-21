@@ -8,6 +8,7 @@ data class FriendInfo(
     val freeCompanyTag: String?,
     val jobName: String?,
     val territoryName: String?,
+    val statusBits: Long,
     val identityUnavailable: Boolean,
 )
 

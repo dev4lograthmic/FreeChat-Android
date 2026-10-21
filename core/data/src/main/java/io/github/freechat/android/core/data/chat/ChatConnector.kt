@@ -7,6 +7,8 @@ import io.github.freechat.android.core.model.ServerProfile
  * depending on the app-level session holder.
  */
 interface ChatConnector {
+    val active: ActiveChat?
+
     suspend fun connect(profile: ServerProfile, pairingCode: String?): ActiveChat
     suspend fun close()
 }

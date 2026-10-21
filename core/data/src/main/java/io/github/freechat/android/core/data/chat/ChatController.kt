@@ -2,18 +2,26 @@ package io.github.freechat.android.core.data.chat
 
 import build.buf.gen.freechat.v1.PairingRequired
 import build.buf.gen.freechat.v1.SendResult
-import build.buf.gen.freechat.v1.Subscribed
+import build.buf.gen.freechat.v1.SendStatus
 import build.buf.gen.freechat.v1.Welcome
 import io.github.freechat.android.core.data.repository.ChatRepository
 import io.github.freechat.android.core.model.ChatConversation
+import io.github.freechat.android.core.model.ChatMessage
 import io.github.freechat.android.core.model.FriendListSnapshot
+import io.github.freechat.android.core.model.SendOutcome
+import io.github.freechat.android.core.model.SendOutcomeStatus
 import io.github.freechat.android.core.model.ServerProfile
+import io.github.freechat.android.core.model.SessionInfo
 import io.github.freechat.android.core.network.client.ChatSession
 import io.github.freechat.android.core.network.client.FreeChatClient
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
@@ -40,11 +48,14 @@ class ChatController(
             serverId = profile.serverId,
             sessionId = connection.welcome.sessionId,
         )
+        val eventFlow = MutableSharedFlow<ChatMessage>(extraBufferCapacity = 128)
         val processorJob: Job = scope.launch {
-            session.events.collect { event -> processor.process(event) }
+            session.events.collect { event ->
+                processor.process(event)?.let { eventFlow.emit(it) }
+            }
         }
 
-        val subscribed = try {
+        try {
             session.subscribe(fromSequence = fromSequence, includeBattle = includeBattle)
         } catch (error: Throwable) {
             processorJob.cancel()
@@ -55,8 +66,9 @@ class ChatController(
 
         return ActiveChat(
             profile = profile,
-            welcome = connection.welcome,
-            subscribed = subscribed,
+            sessionInfo = connection.welcome.toSessionInfo(profile),
+            events = eventFlow.asSharedFlow(),
+            closed = session.closed,
             session = session,
             scope = scope,
             processorJob = processorJob,
@@ -66,8 +78,9 @@ class ChatController(
 
 class ActiveChat internal constructor(
     val profile: ServerProfile,
-    val welcome: Welcome,
-    val subscribed: Subscribed,
+    val sessionInfo: SessionInfo,
+    val events: SharedFlow<ChatMessage>,
+    val closed: Deferred<Unit>,
     private val session: ChatSession,
     private val scope: CoroutineScope,
     private val processorJob: Job,
@@ -76,7 +89,7 @@ class ActiveChat internal constructor(
         conversation: ChatConversation,
         text: String,
         raw: Boolean = false,
-    ): SendResult = session.send(conversation, text, raw)
+    ): SendOutcome = session.send(conversation, text, raw).toOutcome()
 
     suspend fun loadFriends(pageSize: Int = 32): FriendListSnapshot =
         session.loadFriends(pageSize)
@@ -86,4 +99,33 @@ class ActiveChat internal constructor(
         scope.cancel()
         session.close()
     }
+}
+
+private fun Welcome.toSessionInfo(profile: ServerProfile): SessionInfo = SessionInfo(
+    serverId = server.serverId,
+    serverName = server.serverName.ifBlank { profile.serverName.orEmpty() },
+    characterName = server.character.name,
+    worldName = server.character.worldName,
+    sessionId = sessionId,
+    enabledFeatures = enabledFeaturesList,
+)
+
+private fun SendResult.toOutcome(): SendOutcome {
+    val outcomeStatus = when (status) {
+        SendStatus.SEND_STATUS_SUBMITTED -> SendOutcomeStatus.SUBMITTED
+        SendStatus.SEND_STATUS_FAILED -> SendOutcomeStatus.FAILED
+        SendStatus.SEND_STATUS_BLOCKED -> SendOutcomeStatus.BLOCKED
+        SendStatus.SEND_STATUS_RATE_LIMITED -> SendOutcomeStatus.RATE_LIMITED
+        SendStatus.SEND_STATUS_QUEUE_FULL -> SendOutcomeStatus.QUEUE_FULL
+        SendStatus.SEND_STATUS_CANCELLED -> SendOutcomeStatus.CANCELLED
+        else -> SendOutcomeStatus.UNKNOWN
+    }
+    return SendOutcome(
+        status = outcomeStatus,
+        errorCode = error.takeIf { it.name != "ERROR_CODE_UNSPECIFIED" }?.name,
+        message = message,
+        partIndex = partIndex,
+        partCount = partCount,
+        originMessageId = originMessageId.takeIf { it.isNotBlank() },
+    )
 }

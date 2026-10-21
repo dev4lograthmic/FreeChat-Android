@@ -37,16 +37,19 @@ class ChatRepository(
 
     fun observeTotalUnread(): Flow<Int> = conversationDao.observeTotalUnread()
 
+    suspend fun getConversation(conversationId: String): ChatConversation? =
+        conversationDao.get(conversationId)?.toDomain()
+
     suspend fun ensureConversation(conversation: ChatConversation) {
         if (conversationDao.get(conversation.id) == null) {
             conversationDao.upsert(conversation.toEntity())
         }
     }
 
-    suspend fun recordIncoming(message: ChatMessage, conversation: ChatConversation) {
+    suspend fun recordIncoming(message: ChatMessage, conversation: ChatConversation): Boolean =
         database.withTransaction {
             val inserted = messageDao.insert(message.toEntity())
-            if (inserted == -1L) return@withTransaction
+            if (inserted == -1L) return@withTransaction false
 
             messageDao.insertFts(
                 MessageFtsEntity(
@@ -75,8 +78,8 @@ class ChatRepository(
                     increment = !message.outgoing,
                 )
             }
+            true
         }
-    }
 
     suspend fun markRead(conversationId: String) {
         conversationDao.markRead(conversationId)

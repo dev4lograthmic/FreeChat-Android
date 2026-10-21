@@ -58,11 +58,26 @@ class OkHttpEnvelopeTransport(
 
     private inner class Listener : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
-            val leaf = response.handshake?.peerCertificates?.firstOrNull() as? X509Certificate
             val expected = runCatching { RawPublicKeyPin.fromHex(profile.fingerprintHex) }.getOrNull()
-            if (leaf == null || expected == null || !RawPublicKeyPin.matches(leaf, expected)) {
+            if (expected == null) {
+                val error = SecurityException("Invalid pinned fingerprint")
                 webSocket.close(4004, "TLS pin mismatch")
-                val error = SecurityException("Server public key pin mismatch")
+                opened.completeExceptionally(error)
+                incomingChannel.close(error)
+                return
+            }
+
+            val leaf = response.handshake?.peerCertificates?.firstOrNull() as? X509Certificate
+            if (leaf != null && !RawPublicKeyPin.matches(leaf, expected)) {
+                // The TrustManager already checked during the handshake. This
+                // second check catches a platform/session mismatch, but must
+                // not fail when handshake metadata is unavailable.
+                val actual = runCatching { RawPublicKeyPin.toHex(RawPublicKeyPin.fingerprint(leaf)) }
+                    .getOrDefault("<unavailable>")
+                webSocket.close(4004, "TLS pin mismatch")
+                val error = SecurityException(
+                    "Server public key pin mismatch (expected ${profile.fingerprintHex}, actual $actual)",
+                )
                 opened.completeExceptionally(error)
                 incomingChannel.close(error)
                 return
