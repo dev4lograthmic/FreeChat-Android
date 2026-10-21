@@ -99,3 +99,8 @@ Thumbs.db
 .trae/
 .qwen/
 .agents/
+
+# Release signing and local secrets
+keystore.properties
+*.jks
+*.keystore

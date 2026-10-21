@@ -19,8 +19,22 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            name = "buf"
+            url = uri("https://buf.build/gen/maven")
+        }
     }
 }
 
 rootProject.name = "FreeChat-Android"
+
 include(":app")
+include(":core:common")
+include(":core:model")
+include(":core:protocol")
+include(":core:network")
+include(":core:data")
+include(":core:ui")
+include(":feature:pairing")
+include(":feature:chat")
+include(":feature:settings")
