@@ -87,7 +87,7 @@ class AuthSession(
                 val code = pairingCodeProvider(message)
                 if (code.isNullOrBlank()) {
                     result.completeExceptionally(
-                        AuthException.PairingRequired(
+                        AuthException.PairingCodeRequired(
                             pairingRequired = message,
                             server = message.server,
                             expiresAt = message.expiresAt.takeIf { message.hasExpiresAt() },

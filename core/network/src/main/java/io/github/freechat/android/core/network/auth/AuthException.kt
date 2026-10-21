@@ -6,7 +6,7 @@ import build.buf.gen.freechat.v1.ServerInfo
 import com.google.protobuf.Timestamp
 
 sealed class AuthException(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    class PairingRequired(
+    class PairingCodeRequired(
         val pairingRequired: PairingRequired,
         val server: ServerInfo,
         val expiresAt: Timestamp?,

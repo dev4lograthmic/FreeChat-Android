@@ -16,6 +16,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import okio.ByteString.Companion.toByteString
 
 /**
  * OkHttp-backed transport. TLS is pinned in PinnedOkHttpClientFactory and is
@@ -44,7 +45,7 @@ class OkHttpEnvelopeTransport(
     override suspend fun send(envelope: Envelope) {
         val socket = webSocket ?: throw IOException("WebSocket is not connected")
         val bytes = FreeChatProtocolCodec.encode(envelope)
-        val payload = ByteString.of(*bytes.toTypedArray())
+        val payload = bytes.toByteString(0, bytes.size)
         if (!socket.send(payload)) {
             throw IOException("Failed to enqueue WebSocket frame")
         }
