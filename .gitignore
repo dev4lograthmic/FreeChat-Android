@@ -86,3 +86,16 @@ lint/tmp/
 
 # Windows
 Thumbs.db
+
+# AI Agent
+.claude/
+.cursor/
+.gemini/
+.opencode/
+.codex/
+.windsurf/
+.kilocode/
+.kiro/
+.trae/
+.qwen/
+.agents/
