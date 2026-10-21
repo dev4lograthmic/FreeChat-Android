@@ -52,7 +52,7 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "a
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
-bsr-freechat = { group = "build.buf.gen", name = "free-chat_free-chat_protocolbuffers_kotlin", version = "36.2.0.1.20261020171553.3df653a08638" }
+bsr-freechat = { group = "build.buf.gen", name = "free-chat_free-chat_protocolbuffers_kotlin", version = "36.2.0.1.00000000000000.98f4194fdf8b" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
