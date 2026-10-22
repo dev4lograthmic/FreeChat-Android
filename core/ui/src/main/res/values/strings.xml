@@ -11,6 +11,12 @@
     <string name="me_tagline">Continue your FFXIV chats on your phone.</string>
     <string name="me_connect_summary">Scan, deep link, or enter manually</string>
     <string name="me_settings_summary">Notifications, data, developer options</string>
+    <string name="me_switch_session">Switch session</string>
+    <string name="me_switch_session_summary">Select a server and character</string>
+    <string name="me_section_about">About</string>
+    <string name="me_about_title">FreeChat Android</string>
+    <string name="me_about_description">Unofficial FFXIV client</string>
+    <string name="about_version">Version %1$s</string>
     <string name="me_footer">FreeChat Android · Unofficial FFXIV client</string>
 
     <!-- Common -->
@@ -47,6 +53,10 @@
     <string name="chat_search_conversations">Chats</string>
     <string name="chat_search_messages">Messages</string>
     <string name="chat_no_preview">No messages</string>
+    <string name="chat_create_title">New conversation</string>
+    <string name="chat_create_type_private">Direct</string>
+    <string name="chat_create_type_linkshell">Linkshell</string>
+    <string name="chat_create_type_cross_linkshell">Cross-world</string>
     <string name="chat_create_private">Create direct message</string>
     <string name="chat_create_private_title">New direct message</string>
     <string name="chat_create_private_name">Character name</string>

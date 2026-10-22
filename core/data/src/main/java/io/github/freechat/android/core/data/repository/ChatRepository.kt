@@ -36,6 +36,16 @@ class ChatRepository(
     fun observeAllConversations(profileId: String): Flow<List<ChatConversation>> =
         conversationDao.observeAll(profileId).map { rows -> rows.map { it.toDomain() } }
 
+    fun observeLinkshellNames(profileId: String): Flow<Map<String, String>> =
+        conversationDao.observeLinkshellConversations(profileId).map { rows ->
+            rows.mapNotNull { row ->
+                val channel = row.channel ?: return@mapNotNull null
+                val name = ConversationLabels.linkshellName(channel, row.displayName)
+                    ?: return@mapNotNull null
+                channel to name
+            }.toMap()
+        }
+
     fun observeMessages(conversationId: String, limit: Int = 200): Flow<List<ChatMessage>> =
         messageDao.observeByConversation(conversationId, limit).map { rows ->
             rows.asReversed().map { it.toDomain() }

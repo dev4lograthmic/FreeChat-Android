@@ -23,6 +23,12 @@ interface ConversationDao {
     )
     fun observeAll(profileId: String): Flow<List<ConversationEntity>>
 
+    @Query(
+        "SELECT * FROM conversations WHERE profileId = :profileId " +
+            "AND (channel LIKE 'LINKSHELL_%' OR channel LIKE 'CROSS_LINKSHELL_%')",
+    )
+    fun observeLinkshellConversations(profileId: String): Flow<List<ConversationEntity>>
+
     @Query("SELECT * FROM conversations WHERE id = :id")
     suspend fun get(id: String): ConversationEntity?
 

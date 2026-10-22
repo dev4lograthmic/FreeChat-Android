@@ -14,12 +14,14 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -36,7 +38,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size as GeometrySize
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -50,6 +60,7 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.min
 
 @Composable
 fun QrScannerScreen(
@@ -90,11 +101,15 @@ fun QrScannerScreen(
             }
         } else {
             CameraPreview(onResult = onResult)
+            QrViewfinderOverlay()
         }
 
         IconButton(
             onClick = onClose,
-            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp)
+                .background(Color.Black.copy(alpha = 0.35f), CircleShape),
         ) {
             Icon(Icons.Default.Close, contentDescription = "关闭", tint = Color.White)
         }
@@ -104,7 +119,53 @@ fun QrScannerScreen(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(24.dp),
+                .padding(24.dp)
+                .background(Color.Black.copy(alpha = 0.5f), MaterialTheme.shapes.large)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun QrViewfinderOverlay() {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val frameSize = min(size.width, size.height) * 0.68f
+        val left = (size.width - frameSize) / 2f
+        val top = (size.height - frameSize) / 2f
+        val right = left + frameSize
+        val bottom = top + frameSize
+        val cornerRadius = CornerRadius(24.dp.toPx())
+        val maskColor = Color.White.copy(alpha = 0.35f)
+
+        val maskPath = Path().apply {
+            fillType = PathFillType.EvenOdd
+            addRect(
+                Rect(
+                    left = 0f,
+                    top = 0f,
+                    right = size.width,
+                    bottom = size.height,
+                ),
+            )
+            addRoundRect(
+                RoundRect(
+                    rect = Rect(
+                        left = left,
+                        top = top,
+                        right = right,
+                        bottom = bottom,
+                    ),
+                    cornerRadius = cornerRadius,
+                ),
+            )
+        }
+        drawPath(path = maskPath, color = maskColor)
+        drawRoundRect(
+            color = Color.White,
+            topLeft = Offset(left, top),
+            size = GeometrySize(frameSize, frameSize),
+            cornerRadius = cornerRadius,
+            style = Stroke(width = 3.dp.toPx()),
         )
     }
 }

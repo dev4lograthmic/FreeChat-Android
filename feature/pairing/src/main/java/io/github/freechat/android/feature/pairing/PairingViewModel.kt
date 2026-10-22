@@ -41,6 +41,11 @@ class PairingViewModel @Inject constructor(
     fun updateCode(value: String) = _state.update { it.copy(code = value, error = null) }
     fun updateLink(value: String) = _state.update { it.copy(link = value, error = null) }
 
+    fun connectWithLink(value: String) {
+        _state.update { it.copy(link = value, error = null) }
+        connect()
+    }
+
     fun parseLink(value: String) {
         runCatching { PairingLinkParser.parse(value) }
             .onSuccess { link ->
@@ -57,19 +62,48 @@ class PairingViewModel @Inject constructor(
                 }
             }
             .onFailure { error ->
-                _state.update { it.copy(error = error.message ?: "深链格式不正确") }
+                _state.update { it.copy(error = error.message ?: "配对链接格式不正确") }
             }
     }
 
     fun connect() {
         val current = _state.value
-        val port = current.port.toIntOrNull()
-        val fingerprint = current.fingerprint.trim().lowercase()
+        val parsedLink = current.link.trim()
+            .takeIf { it.isNotBlank() }
+            ?.let { value ->
+                runCatching { PairingLinkParser.parse(value) }
+                    .getOrElse { error ->
+                        _state.update {
+                            it.copy(error = error.message ?: "配对链接格式不正确")
+                        }
+                        return
+                    }
+            }
+
+        val host = parsedLink?.host ?: current.host.trim()
+        val port = parsedLink?.port ?: current.port.toIntOrNull()
+        val serverId = parsedLink?.serverId ?: current.serverId.trim()
+        val fingerprint = (parsedLink?.fingerprintHex ?: current.fingerprint)
+            .trim()
+            .lowercase()
+        val code = parsedLink?.code ?: current.code.trim().ifBlank { null }
+
+        if (parsedLink != null) {
+            _state.update {
+                it.copy(
+                    host = host,
+                    port = port?.toString().orEmpty(),
+                    serverId = serverId,
+                    fingerprint = fingerprint,
+                    code = code.orEmpty(),
+                )
+            }
+        }
 
         val validationError = when {
-            current.host.isBlank() -> "请填写服务器地址"
+            host.isBlank() -> "请填写服务器地址"
             port == null || port !in 1..65535 -> "端口不正确"
-            current.serverId.isBlank() -> "请填写服务器 ID（深链中的 sid）"
+            serverId.isBlank() -> "请填写服务器 ID（链接中的 sid）"
             !FINGERPRINT.matches(fingerprint) -> "指纹必须是 64 位十六进制"
             else -> null
         }
@@ -82,12 +116,12 @@ class PairingViewModel @Inject constructor(
             _state.update { it.copy(isConnecting = true, error = null) }
             try {
                 val profile = ServerProfile(
-                    serverId = current.serverId.trim(),
-                    host = current.host.trim(),
+                    serverId = serverId,
+                    host = host,
                     port = port!!,
                     fingerprintHex = fingerprint,
                 )
-                connector.connect(profile, current.code.trim().ifBlank { null })
+                connector.connect(profile, code)
                 _state.update { it.copy(isConnecting = false, connected = true) }
             } catch (error: Exception) {
                 _state.update {

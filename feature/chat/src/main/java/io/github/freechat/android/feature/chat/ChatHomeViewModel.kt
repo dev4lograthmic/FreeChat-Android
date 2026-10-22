@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.freechat.android.core.data.chat.ChatConnector
 import io.github.freechat.android.core.data.conversation.ConversationIds
+import io.github.freechat.android.core.data.conversation.ConversationLabels
 import io.github.freechat.android.core.data.repository.ChatRepository
 import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.data.store.SettingsStore
@@ -50,6 +51,19 @@ class ChatHomeViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
+        )
+
+    val linkshellNames: StateFlow<Map<String, String>> =
+        activeProfileId.flatMapLatest { profileId ->
+            if (profileId == null) {
+                flowOf(emptyMap())
+            } else {
+                repository.observeLinkshellNames(profileId)
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyMap(),
         )
 
     val totalUnread: StateFlow<Int> =
@@ -141,6 +155,40 @@ class ChatHomeViewModel @Inject constructor(
                 peerName = name,
                 peerWorld = world.ifBlank { null },
                 displayName = displayName,
+                lastMessageText = "",
+                lastMessageAt = 0,
+                unreadCount = 0,
+            ),
+        )
+        return conversationId
+    }
+
+    suspend fun createChannelChat(channel: String): String? {
+        val isLinkshell = ConversationLabels.isLinkshell(channel)
+        if (!isLinkshell && channel !in ConversationLabels.publicChannels) return null
+        val profile = serverRepository.activeProfile.first()
+        val serverId = connector.active?.profile?.serverId
+            ?: profile?.serverId
+            ?: return null
+        val profileId = connector.active?.sessionInfo?.profileId
+            ?: profile?.profileId
+            ?: return null
+        val conversationId = ConversationIds.publicChannel(profileId, channel)
+        repository.getConversation(conversationId)?.let { return conversationId }
+        repository.ensureConversation(
+            ChatConversation(
+                id = conversationId,
+                profileId = profileId,
+                serverId = serverId,
+                type = if (isLinkshell) ConversationType.LINKSHELL else ConversationType.PUBLIC_CHANNEL,
+                channel = channel,
+                peerName = null,
+                peerWorld = null,
+                displayName = if (isLinkshell) {
+                    ConversationLabels.linkshellLabel(channel)
+                } else {
+                    ConversationLabels.publicLabel(channel)
+                },
                 lastMessageText = "",
                 lastMessageAt = 0,
                 unreadCount = 0,

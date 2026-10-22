@@ -11,6 +11,12 @@
     <string name="me_tagline">在手机上继续 FFXIV 的聊天。</string>
     <string name="me_connect_summary">扫码、深链或手动输入</string>
     <string name="me_settings_summary">通知、数据、开发者选项</string>
+    <string name="me_switch_session">切换会话</string>
+    <string name="me_switch_session_summary">选择服务器与角色</string>
+    <string name="me_section_about">关于</string>
+    <string name="me_about_title">FreeChat Android</string>
+    <string name="me_about_description">非官方 FFXIV 客户端</string>
+    <string name="about_version">版本 %1$s</string>
     <string name="me_footer">FreeChat Android · 非官方 FFXIV 客户端</string>
 
     <!-- Common -->
@@ -47,6 +53,10 @@
     <string name="chat_search_conversations">会话</string>
     <string name="chat_search_messages">消息</string>
     <string name="chat_no_preview">暂无消息</string>
+    <string name="chat_create_title">新建对话</string>
+    <string name="chat_create_type_private">私聊</string>
+    <string name="chat_create_type_linkshell">通讯贝</string>
+    <string name="chat_create_type_cross_linkshell">跨服通讯贝</string>
     <string name="chat_create_private">创建私聊</string>
     <string name="chat_create_private_title">创建私聊</string>
     <string name="chat_create_private_name">角色名</string>

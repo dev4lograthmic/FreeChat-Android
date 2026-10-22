@@ -45,6 +45,7 @@ import io.github.freechat.android.feature.chat.ChatRoute
 import io.github.freechat.android.feature.chat.ConversationRoute
 import io.github.freechat.android.feature.chat.FriendsRoute
 import io.github.freechat.android.feature.pairing.PairingRoute
+import io.github.freechat.android.feature.settings.AboutScreen
 import io.github.freechat.android.feature.settings.DeveloperOptionsRoute
 import io.github.freechat.android.feature.settings.MeRoute
 import io.github.freechat.android.feature.settings.SettingsScreen
@@ -56,6 +57,7 @@ object Routes {
     const val ME = "me"
     const val SETTINGS = "settings"
     const val DEVELOPER = "developer"
+    const val ABOUT = "about"
     const val CONVERSATION = "conversation/{conversationId}"
     const val PAIRING = "pairing?link={link}"
 
@@ -149,6 +151,11 @@ fun FreeChatApp(deepLink: String? = null, conversationId: String? = null) {
                         launchSingleTop = true
                     }
                 },
+                onOpenAbout = {
+                    navController.navigate(Routes.ABOUT) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 
@@ -202,6 +209,18 @@ fun FreeChatApp(deepLink: String? = null, conversationId: String? = null) {
         }
 
         composable(
+            route = Routes.ABOUT,
+            enterTransition = { secondaryEnter() },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { secondaryExit() },
+        ) {
+            AboutScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
             route = Routes.PAIRING,
             arguments = listOf(
                 navArgument("link") {
@@ -233,6 +252,7 @@ private fun MainTabs(
     onOpenConversation: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPairing: (String?) -> Unit,
+    onOpenAbout: () -> Unit,
 ) {
     val tabNavController = rememberNavController()
     val backStackEntry by tabNavController.currentBackStackEntryAsState()
@@ -313,6 +333,7 @@ private fun MainTabs(
                         MeRoute(
                             onOpenSettings = onOpenSettings,
                             onOpenPairing = { onOpenPairing(null) },
+                            onOpenAbout = onOpenAbout,
                         )
                     }
                 }

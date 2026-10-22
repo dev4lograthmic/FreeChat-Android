@@ -13,6 +13,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +43,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -110,12 +114,14 @@ fun ChatRoute(
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
     val collapsedSections by viewModel.collapsedSections.collectAsStateWithLifecycle()
+    val linkshellNames by viewModel.linkshellNames.collectAsStateWithLifecycle()
 
     ChatScreen(
         conversations = conversations,
         searchResults = searchResults,
         isConnected = isConnected,
         collapsedSections = collapsedSections,
+        linkshellNames = linkshellNames,
         onSearch = viewModel::search,
         onToggleSection = viewModel::toggleSection,
         onOpenConversation = { conversationId ->
@@ -126,6 +132,7 @@ fun ChatRoute(
         onHideConversation = viewModel::hideConversation,
         onUnhideConversation = viewModel::unhideConversation,
         onCreatePrivateChat = viewModel::createPrivateChat,
+        onCreateChannelChat = viewModel::createChannelChat,
         onOpenPairing = onOpenPairing,
     )
 }
@@ -137,12 +144,14 @@ fun ChatScreen(
     searchResults: List<ChatMessage>,
     isConnected: Boolean,
     collapsedSections: Set<ConversationType>,
+    linkshellNames: Map<String, String>,
     onSearch: (String) -> Unit,
     onToggleSection: (ConversationType) -> Unit,
     onOpenConversation: (String) -> Unit,
     onHideConversation: (String) -> Unit,
     onUnhideConversation: (String) -> Unit,
     onCreatePrivateChat: suspend (String, String) -> String?,
+    onCreateChannelChat: suspend (String) -> String?,
     onOpenPairing: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
@@ -262,7 +271,7 @@ fun ChatScreen(
                 ) {
                     Icon(
                         Icons.Default.Add,
-                        contentDescription = stringResource(R.string.chat_create_private),
+                        contentDescription = stringResource(R.string.chat_create_title),
                     )
                 }
             }
@@ -455,11 +464,19 @@ fun ChatScreen(
     }
 
     if (showCreateSheet) {
-        CreatePrivateChatSheet(
+        CreateConversationSheet(
+            linkshellNames = linkshellNames,
             onDismiss = { showCreateSheet = false },
-            onCreate = { name, world ->
+            onCreatePrivate = { name, world ->
                 scope.launch {
                     val id = onCreatePrivateChat(name, world)
+                    showCreateSheet = false
+                    if (id != null) onOpenConversation(id)
+                }
+            },
+            onCreateChannel = { channel ->
+                scope.launch {
+                    val id = onCreateChannelChat(channel)
                     showCreateSheet = false
                     if (id != null) onOpenConversation(id)
                 }
@@ -701,15 +718,30 @@ private fun SearchResultRow(
     )
 }
 
+private enum class CreateConversationMode {
+    PRIVATE,
+    LINKSHELL,
+    CROSS_LINKSHELL,
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CreatePrivateChatSheet(
+private fun CreateConversationSheet(
+    linkshellNames: Map<String, String>,
     onDismiss: () -> Unit,
-    onCreate: (String, String) -> Unit,
+    onCreatePrivate: (String, String) -> Unit,
+    onCreateChannel: (String) -> Unit,
 ) {
+    var mode by remember { mutableStateOf(CreateConversationMode.PRIVATE) }
     var name by remember { mutableStateOf("") }
     var world by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val linkshellChannels = remember {
+        ConversationLabels.linkshellChannels.keys.filterNot { it.startsWith("CROSS_") }
+    }
+    val crossLinkshellChannels = remember {
+        ConversationLabels.linkshellChannels.keys.filter { it.startsWith("CROSS_") }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -723,39 +755,139 @@ private fun CreatePrivateChatSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = stringResource(R.string.chat_create_private_title),
+                text = stringResource(R.string.chat_create_title),
                 style = MaterialTheme.typography.headlineSmall,
             )
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(stringResource(R.string.chat_create_private_name)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = world,
-                onValueChange = { world = it },
-                label = { Text(stringResource(R.string.chat_create_private_world)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.common_cancel))
+                FilterChip(
+                    selected = mode == CreateConversationMode.PRIVATE,
+                    onClick = { mode = CreateConversationMode.PRIVATE },
+                    label = { Text(stringResource(R.string.chat_create_type_private)) },
+                )
+                FilterChip(
+                    selected = mode == CreateConversationMode.LINKSHELL,
+                    onClick = { mode = CreateConversationMode.LINKSHELL },
+                    label = { Text(stringResource(R.string.chat_create_type_linkshell)) },
+                )
+                FilterChip(
+                    selected = mode == CreateConversationMode.CROSS_LINKSHELL,
+                    onClick = { mode = CreateConversationMode.CROSS_LINKSHELL },
+                    label = {
+                        Text(stringResource(R.string.chat_create_type_cross_linkshell))
+                    },
+                )
+            }
+
+            when (mode) {
+                CreateConversationMode.PRIVATE -> {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text(stringResource(R.string.chat_create_private_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = world,
+                        onValueChange = { world = it },
+                        label = { Text(stringResource(R.string.chat_create_private_world)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.common_cancel))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = { onCreatePrivate(name, world) },
+                            enabled = name.isNotBlank(),
+                        ) {
+                            Text(stringResource(R.string.chat_create_private_action))
+                        }
+                    }
                 }
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = { onCreate(name, world) },
-                    enabled = name.isNotBlank(),
-                ) {
-                    Text(stringResource(R.string.chat_create_private_action))
+
+                CreateConversationMode.LINKSHELL -> {
+                    ChannelPickList(
+                        channels = linkshellChannels,
+                        names = linkshellNames,
+                        onPick = onCreateChannel,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.common_cancel))
+                        }
+                    }
+                }
+
+                CreateConversationMode.CROSS_LINKSHELL -> {
+                    ChannelPickList(
+                        channels = crossLinkshellChannels,
+                        names = linkshellNames,
+                        onPick = onCreateChannel,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = onDismiss) {
+                            Text(stringResource(R.string.common_cancel))
+                        }
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ChannelPickList(
+    channels: List<String>,
+    names: Map<String, String>,
+    onPick: (String) -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 420.dp),
+    ) {
+        items(channels, key = { it }) { channel ->
+            val customName = names[channel]
+            val defaultName = chatChannelLabel(channel, channel)
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = customName ?: defaultName,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                overlineContent = if (customName != null) {
+                    {
+                        Text(
+                            text = defaultName,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    null
+                },
+                modifier = Modifier.clickable { onPick(channel) },
+            )
         }
     }
 }
@@ -802,12 +934,14 @@ private fun ChatScreenPreview() {
             searchResults = emptyList(),
             isConnected = true,
             collapsedSections = emptySet(),
+            linkshellNames = emptyMap(),
             onSearch = {},
             onToggleSection = {},
             onOpenConversation = {},
             onHideConversation = {},
             onUnhideConversation = {},
             onCreatePrivateChat = { _, _ -> null },
+            onCreateChannelChat = { null },
             onOpenPairing = {},
         )
     }
@@ -822,12 +956,14 @@ private fun ChatScreenEmptyPreview() {
             searchResults = emptyList(),
             isConnected = false,
             collapsedSections = emptySet(),
+            linkshellNames = emptyMap(),
             onSearch = {},
             onToggleSection = {},
             onOpenConversation = {},
             onHideConversation = {},
             onUnhideConversation = {},
             onCreatePrivateChat = { _, _ -> null },
+            onCreateChannelChat = { null },
             onOpenPairing = {},
         )
     }
@@ -842,12 +978,14 @@ private fun ChatScreenCollapsedPreview() {
             searchResults = emptyList(),
             isConnected = true,
             collapsedSections = ConversationType.entries.toSet(),
+            linkshellNames = mapOf("LINKSHELL_1" to "Crystal Guild"),
             onSearch = {},
             onToggleSection = {},
             onOpenConversation = {},
             onHideConversation = {},
             onUnhideConversation = {},
             onCreatePrivateChat = { _, _ -> null },
+            onCreateChannelChat = { null },
             onOpenPairing = {},
         )
     }

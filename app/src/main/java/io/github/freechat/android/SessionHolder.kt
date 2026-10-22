@@ -68,6 +68,15 @@ class SessionHolder @Inject constructor(
             pairingCodeProvider = { pairingCode },
             onPairingRequired = { onPairingRequired() },
         )
+        val identityMatches = active.sessionInfo.serverId == profile.serverId &&
+            (profile.characterId == 0L ||
+                active.sessionInfo.characterId == profile.characterId)
+        if (!identityMatches) {
+            active.close()
+            throw IllegalStateException(
+                "Server or character identity does not match the selected session",
+            )
+        }
         serverRepository.save(
             profile.copy(
                 serverId = active.sessionInfo.serverId,
