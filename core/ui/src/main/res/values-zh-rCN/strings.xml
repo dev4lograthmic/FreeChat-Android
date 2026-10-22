@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Navigation -->
+    <string name="nav_chat">聊天</string>
+    <string name="nav_friends">好友</string>
+    <string name="nav_me">我</string>
+
+    <!-- Common -->
+    <string name="common_cancel">取消</string>
+    <string name="common_create">创建</string>
+    <string name="common_close">关闭</string>
+    <string name="common_back">返回</string>
+    <string name="common_delete">删除</string>
+    <string name="common_undo">撤销</string>
+    <string name="common_retry">重试</string>
+    <string name="common_settings">设置</string>
+    <string name="common_connect_server">连接服务器</string>
+    <string name="common_connected">已连接</string>
+    <string name="common_not_connected">未连接</string>
+    <string name="common_search">搜索</string>
+    <string name="common_more">更多选项</string>
+    <string name="common_unknown_error">未知错误</string>
+
+    <!-- Drawer -->
+
+    <!-- Chat list -->
+    <string name="chat_title">聊天</string>
+    <string name="chat_search_placeholder">搜索聊天</string>
+    <string name="chat_section_system">系统通知</string>
+    <string name="chat_section_public">公共频道</string>
+    <string name="chat_section_private">私聊</string>
+    <string name="chat_waiting_title">已连接，等待消息</string>
+    <string name="chat_waiting_message">收到新消息后会显示在这里。</string>
+    <string name="chat_empty_title">还没有连接服务器</string>
+    <string name="chat_empty_message">连接 Dalamud 服务端后，系统通知、公共频道和私聊会出现在这里。</string>
+    <string name="chat_search_empty_title">没有找到消息</string>
+    <string name="chat_search_empty_message">试试其他关键词，或检查是否已连接服务器。</string>
+    <string name="chat_no_preview">暂无消息</string>
+    <string name="chat_create_private">创建私聊</string>
+    <string name="chat_create_private_title">创建私聊</string>
+    <string name="chat_create_private_name">角色名</string>
+    <string name="chat_create_private_world">所在服务器</string>
+    <string name="chat_create_private_action">开始聊天</string>
+    <string name="chat_hide_conversation">从列表中删除</string>
+    <string name="chat_hidden">已从列表中删除</string>
+    <string name="chat_open_conversation">打开会话</string>
+    <string name="chat_time_yesterday">昨天</string>
+    <plurals name="chat_unread_count">
+        <item quantity="one">%d 条未读消息</item>
+        <item quantity="other">%d 条未读消息</item>
+    </plurals>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_section_appearance">外观</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_summary">应用语言与日期格式</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_zh">简体中文</string>
+    <string name="settings_server_unnamed">服务器</string>
+
+    <!-- Channel labels -->
+    <string name="channel_say">说话</string>
+    <string name="channel_shout">喊话</string>
+    <string name="channel_yell">呼喊</string>
+    <string name="channel_party">小队</string>
+    <string name="channel_alliance">团队</string>
+    <string name="channel_free_company">部队</string>
+    <string name="channel_linkshell_1">通讯贝 1</string>
+    <string name="channel_linkshell_2">通讯贝 2</string>
+    <string name="channel_linkshell_3">通讯贝 3</string>
+    <string name="channel_linkshell_4">通讯贝 4</string>
+    <string name="channel_linkshell_5">通讯贝 5</string>
+    <string name="channel_linkshell_6">通讯贝 6</string>
+    <string name="channel_linkshell_7">通讯贝 7</string>
+    <string name="channel_linkshell_8">通讯贝 8</string>
+    <string name="channel_cross_linkshell_1">跨服通讯贝 1</string>
+    <string name="channel_cross_linkshell_2">跨服通讯贝 2</string>
+    <string name="channel_cross_linkshell_3">跨服通讯贝 3</string>
+    <string name="channel_cross_linkshell_4">跨服通讯贝 4</string>
+    <string name="channel_cross_linkshell_5">跨服通讯贝 5</string>
+    <string name="channel_cross_linkshell_6">跨服通讯贝 6</string>
+    <string name="channel_cross_linkshell_7">跨服通讯贝 7</string>
+    <string name="channel_cross_linkshell_8">跨服通讯贝 8</string>
+    <string name="channel_novice_network">新人频道</string>
+    <string name="channel_pvp_team">PVP 团队</string>
+    <string name="channel_emote">情感动作</string>
+    <string name="system_system">系统</string>
+    <string name="system_error">错误</string>
+    <string name="system_npc">NPC</string>
+    <string name="system_battle_log">战斗日志</string>
+</resources>

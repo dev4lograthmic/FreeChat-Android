@@ -1,28 +1,37 @@
 package io.github.freechat.android
 
 import android.net.Uri
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -31,15 +40,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import io.github.freechat.android.core.ui.R
 import io.github.freechat.android.feature.chat.ChatRoute
 import io.github.freechat.android.feature.chat.ConversationRoute
 import io.github.freechat.android.feature.chat.FriendsScreen
 import io.github.freechat.android.feature.pairing.PairingRoute
 import io.github.freechat.android.feature.settings.MeRoute
 import io.github.freechat.android.feature.settings.SettingsScreen
-import kotlinx.coroutines.launch
 
 object Routes {
+    const val MAIN = "main"
     const val CHAT = "chat"
     const val FRIENDS = "friends"
     const val ME = "me"
@@ -54,18 +64,41 @@ object Routes {
         "pairing?link=${Uri.encode(link.orEmpty())}"
 }
 
+private data class TopLevelDestination(
+    val route: String,
+    val labelRes: Int,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+)
+
+private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+
+private fun secondaryEnter(): EnterTransition =
+    slideInHorizontally(
+        initialOffsetX = { it },
+        animationSpec = tween(350, easing = EmphasizedDecelerate),
+    )
+
+private fun secondaryExit(): ExitTransition =
+    slideOutHorizontally(
+        targetOffsetX = { it },
+        animationSpec = tween(300, easing = EmphasizedAccelerate),
+    )
+
+private val topLevelDestinations = listOf(
+    TopLevelDestination(Routes.CHAT, R.string.nav_chat, Icons.AutoMirrored.Filled.Chat),
+    TopLevelDestination(Routes.FRIENDS, R.string.nav_friends, Icons.Default.Group),
+    TopLevelDestination(Routes.ME, R.string.nav_me, Icons.Default.Person),
+)
+
+/**
+ * Root navigation: the three main tabs live in [MainTabs]. Conversation,
+ * settings and pairing are full-screen layers above the tabs, so they cover
+ * the bottom bar / rail while they slide in.
+ */
 @Composable
 fun FreeChatApp(deepLink: String? = null, conversationId: String? = null) {
     val navController = rememberNavController()
-    val drawerState = androidx.compose.material3.rememberDrawerState(
-        initialValue = androidx.compose.material3.DrawerValue.Closed,
-    )
-    val scope = rememberCoroutineScope()
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val route = backStackEntry?.destination?.route
-    val showBottomBar = route != null &&
-        !route.startsWith("pairing") &&
-        !route.startsWith("conversation")
 
     LaunchedEffect(deepLink) {
         if (!deepLink.isNullOrBlank()) {
@@ -83,141 +116,186 @@ fun FreeChatApp(deepLink: String? = null, conversationId: String? = null) {
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ) {
-                Text(
-                    text = "FreeChat",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(24.dp),
-                )
-                NavigationDrawerItem(
-                    label = { Text("连接服务器") },
-                    icon = { Icon(Icons.Default.Link, contentDescription = null) },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        navController.navigate(Routes.pairing())
-                    },
-                )
-                NavigationDrawerItem(
-                    label = { Text("设置") },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                    selected = route == Routes.SETTINGS,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        navController.navigate(Routes.SETTINGS)
-                    },
-                )
-            }
-        },
+    NavHost(
+        navController = navController,
+        startDestination = Routes.MAIN,
+        enterTransition = { secondaryEnter() },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { secondaryExit() },
     ) {
+        composable(
+            route = Routes.MAIN,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) {
+            MainTabs(
+                onOpenConversation = { conversation ->
+                    navController.navigate(Routes.conversation(conversation)) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenSettings = {
+                    navController.navigate(Routes.SETTINGS) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenPairing = { link ->
+                    navController.navigate(Routes.pairing(link)) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.CONVERSATION,
+            arguments = listOf(
+                navArgument("conversationId") { type = NavType.StringType },
+            ),
+            enterTransition = { secondaryEnter() },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { secondaryExit() },
+        ) {
+            ConversationRoute(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Routes.SETTINGS,
+            enterTransition = { secondaryEnter() },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { secondaryExit() },
+        ) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenPairing = {
+                    navController.navigate(Routes.pairing()) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.PAIRING,
+            arguments = listOf(
+                navArgument("link") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+            enterTransition = { secondaryEnter() },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { secondaryExit() },
+        ) { entry ->
+            PairingRoute(
+                initialLink = entry.arguments
+                    ?.getString("link")
+                    ?.let { Uri.decode(it) },
+                onBack = { navController.popBackStack() },
+                onConnected = {
+                    navController.popBackStack(Routes.MAIN, inclusive = false)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MainTabs(
+    onOpenConversation: (String) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenPairing: (String?) -> Unit,
+) {
+    val tabNavController = rememberNavController()
+    val backStackEntry by tabNavController.currentBackStackEntryAsState()
+    val route = backStackEntry?.destination?.route
+    val selectedRoute = when (route) {
+        Routes.FRIENDS -> Routes.FRIENDS
+        Routes.ME -> Routes.ME
+        else -> Routes.CHAT
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val useNavigationRail = maxWidth >= 600.dp
         Scaffold(
             containerColor = MaterialTheme.colorScheme.surface,
+            contentWindowInsets = WindowInsets.safeDrawing,
             bottomBar = {
-                if (showBottomBar) {
+                if (!useNavigationRail) {
                     NavigationBar(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
                         tonalElevation = 0.dp,
                     ) {
-                        NavigationBarItem(
-                            selected = route == Routes.CHAT,
-                            onClick = { navController.navigateTab(Routes.CHAT) },
-                            icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null) },
-                            label = { Text("聊天") },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        )
-                        NavigationBarItem(
-                            selected = route == Routes.FRIENDS,
-                            onClick = { navController.navigateTab(Routes.FRIENDS) },
-                            icon = { Icon(Icons.Default.Group, contentDescription = null) },
-                            label = { Text("好友") },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        )
-                        NavigationBarItem(
-                            selected = route == Routes.ME || route == Routes.SETTINGS,
-                            onClick = { navController.navigateTab(Routes.ME) },
-                            icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                            label = { Text("我") },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        )
+                        topLevelDestinations.forEach { destination ->
+                            NavigationBarItem(
+                                selected = selectedRoute == destination.route,
+                                onClick = { tabNavController.navigateTab(destination.route) },
+                                icon = {
+                                    Icon(destination.icon, contentDescription = null)
+                                },
+                                label = { Text(stringResource(destination.labelRes)) },
+                            )
+                        }
                     }
                 }
             },
         ) { padding ->
-            NavHost(
-                navController = navController,
-                startDestination = Routes.CHAT,
-                modifier = Modifier.padding(padding),
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
             ) {
-                composable(Routes.CHAT) {
-                    ChatRoute(
-                        onOpenDrawer = { scope.launch { drawerState.open() } },
-                        onOpenPairing = { navController.navigate(Routes.pairing()) },
-                        onOpenConversation = { navController.navigate(Routes.conversation(it)) },
-                    )
+                if (useNavigationRail) {
+                    NavigationRail(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Spacer(Modifier.height(8.dp))
+                        topLevelDestinations.forEach { destination ->
+                            NavigationRailItem(
+                                selected = selectedRoute == destination.route,
+                                onClick = { tabNavController.navigateTab(destination.route) },
+                                icon = {
+                                    Icon(destination.icon, contentDescription = null)
+                                },
+                                label = { Text(stringResource(destination.labelRes)) },
+                            )
+                        }
+                    }
                 }
-                composable(Routes.FRIENDS) {
-                    FriendsScreen(
-                        onOpenDrawer = { scope.launch { drawerState.open() } },
-                        onOpenPairing = { navController.navigate(Routes.pairing()) },
-                        onOpenConversation = { navController.navigate(Routes.conversation(it)) },
-                    )
-                }
-                composable(Routes.ME) {
-                    MeRoute(
-                        onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                        onOpenPairing = { navController.navigate(Routes.pairing()) },
-                    )
-                }
-                composable(
-                    route = Routes.CONVERSATION,
-                    arguments = listOf(
-                        navArgument("conversationId") { type = NavType.StringType },
-                    ),
+                NavHost(
+                    navController = tabNavController,
+                    startDestination = Routes.CHAT,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize(),
                 ) {
-                    ConversationRoute(
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.SETTINGS) {
-                    SettingsScreen(
-                        onBack = { navController.popBackStack() },
-                        onOpenPairing = { navController.navigate(Routes.pairing()) },
-                    )
-                }
-                composable(
-                    route = Routes.PAIRING,
-                    arguments = listOf(
-                        navArgument("link") {
-                            type = NavType.StringType
-                            nullable = true
-                            defaultValue = null
-                        },
-                    ),
-                ) { entry ->
-                    PairingRoute(
-                        initialLink = entry.arguments?.getString("link")?.let { Uri.decode(it) },
-                        onBack = { navController.popBackStack() },
-                        onConnected = {
-                            navController.navigate(Routes.CHAT) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    inclusive = true
-                                }
-                                launchSingleTop = true
-                            }
-                        },
-                    )
+                    composable(Routes.CHAT) {
+                        ChatRoute(
+                            onOpenPairing = { onOpenPairing(null) },
+                            onOpenConversation = onOpenConversation,
+                        )
+                    }
+                    composable(Routes.FRIENDS) {
+                        FriendsScreen(
+                            onOpenPairing = { onOpenPairing(null) },
+                            onOpenConversation = onOpenConversation,
+                        )
+                    }
+                    composable(Routes.ME) {
+                        MeRoute(
+                            onOpenSettings = onOpenSettings,
+                            onOpenPairing = { onOpenPairing(null) },
+                        )
+                    }
                 }
             }
         }

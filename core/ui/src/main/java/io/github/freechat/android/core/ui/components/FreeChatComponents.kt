@@ -1,140 +1,80 @@
 package io.github.freechat.android.core.ui.components
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
-@Composable
-fun ScreenBackground(
-    modifier: Modifier = Modifier,
-    content: @Composable BoxScope.() -> Unit,
-) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-                ),
-            ),
-        content = content,
-    )
-}
-
-@Composable
-fun FreeChatSearchBar(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    modifier: Modifier = Modifier,
-    onMenuClick: (() -> Unit)? = null,
-    enabled: Boolean = true,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled,
-        singleLine = true,
-        shape = CircleShape,
-        placeholder = { Text(placeholder) },
-        leadingIcon = {
-            if (onMenuClick != null) {
-                IconButton(onClick = onMenuClick) {
-                    Icon(Icons.Default.Menu, contentDescription = "打开菜单")
-                }
-            }
-        },
-        trailingIcon = {
-            Icon(Icons.Default.Search, contentDescription = null)
-        },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-            unfocusedBorderColor = Color.Transparent,
-            disabledBorderColor = Color.Transparent,
-            focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            focusedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-    )
-}
 
 @Composable
 fun FreeChatSectionHeader(
     text: String,
     modifier: Modifier = Modifier,
     expanded: Boolean? = null,
+    unreadCount: Int = 0,
     onClick: (() -> Unit)? = null,
 ) {
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(top = 20.dp, bottom = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-            )
-            if (expanded != null) {
-                Icon(
-                    imageVector = if (expanded) {
-                        Icons.Default.KeyboardArrowUp
-                    } else {
-                        Icons.Default.KeyboardArrowDown
-                    },
-                    contentDescription = if (expanded) "折叠" else "展开",
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        if (expanded == false && unreadCount > 0) {
+            Badge(
+                modifier = Modifier.padding(end = 8.dp),
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            ) {
+                Text(if (unreadCount > 99) "99+" else unreadCount.toString())
             }
         }
-        Spacer(Modifier.height(6.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        if (expanded != null) {
+            val rotation by animateFloatAsState(
+                targetValue = if (expanded) 180f else 0f,
+                label = "sectionArrow",
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.rotate(rotation),
+            )
+        }
     }
 }
 
@@ -142,19 +82,22 @@ fun FreeChatSectionHeader(
 fun FreeChatAvatar(
     label: String,
     modifier: Modifier = Modifier,
-    size: Dp = 44.dp,
-    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    size: Dp = 48.dp,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
 ) {
+    val colors = avatarColors(label)
+    val background = containerColor ?: colors.first
+    val foreground = contentColor ?: colors.second
     Surface(
         modifier = modifier.size(size),
         shape = CircleShape,
-        color = containerColor,
-        contentColor = contentColor,
+        color = background,
+        contentColor = foreground,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = label.take(1).uppercase().ifBlank { "?" },
+                text = label.trim().take(1).uppercase().ifBlank { "?" },
                 style = MaterialTheme.typography.titleMedium,
             )
         }
@@ -162,20 +105,16 @@ fun FreeChatAvatar(
 }
 
 @Composable
-fun FreeChatCard(
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        modifier = modifier
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        tonalElevation = 0.dp,
-        content = content,
+private fun avatarColors(label: String): Pair<Color, Color> {
+    val scheme = MaterialTheme.colorScheme
+    val palette = listOf(
+        scheme.primaryContainer to scheme.onPrimaryContainer,
+        scheme.secondaryContainer to scheme.onSecondaryContainer,
+        scheme.tertiaryContainer to scheme.onTertiaryContainer,
+        scheme.surfaceContainerHighest to scheme.onSurface,
     )
+    val index = (label.hashCode() and Int.MAX_VALUE) % palette.size
+    return palette[index]
 }
 
 @Composable
@@ -187,37 +126,44 @@ fun FreeChatSettingRow(
     trailing: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    Row(
+    ListItem(
+        headlineContent = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         modifier = modifier
             .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ) {
-            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            if (!description.isNullOrBlank()) {
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        supportingContent = description?.let {
+            {
                 Text(
-                    description,
+                    text = it,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-        trailing?.invoke()
-    }
+        },
+        leadingContent = {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
+                Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                }
+            }
+        },
+        trailingContent = trailing,
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        tonalElevation = 0.dp,
+    )
 }
 
 @Composable
@@ -237,45 +183,29 @@ fun FreeChatEmptyState(
     ) {
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ) {
             Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp))
             }
         }
         Spacer(Modifier.height(16.dp))
-        Text(title, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(6.dp))
         Text(
-            message,
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
         if (action != null) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             action()
         }
-    }
-}
-
-@Composable
-fun FreeChatStatusPill(
-    text: String,
-    color: Color = MaterialTheme.colorScheme.primary,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimary,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = CircleShape,
-        color = color,
-        contentColor = contentColor,
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-        )
     }
 }

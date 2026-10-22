@@ -1,15 +1,19 @@
 package io.github.freechat.android.service
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import dagger.hilt.android.AndroidEntryPoint
+import io.github.freechat.android.R
+import io.github.freechat.android.core.ui.R as UiR
 import io.github.freechat.android.SessionHolder
 import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.network.connection.ReconnectPolicy
+import io.github.freechat.android.core.ui.locale.LocaleController
 import io.github.freechat.android.notify.NotificationDispatcher
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +37,10 @@ class FreeChatService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var loopJob: Job? = null
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleController.wrap(newBase))
+    }
+
     override fun onCreate() {
         super.onCreate()
         notifications.ensureChannels()
@@ -44,7 +52,7 @@ class FreeChatService : Service() {
             return START_NOT_STICKY
         }
 
-        startForegroundNow("正在连接…")
+        startForegroundNow(getString(R.string.service_connecting))
         if (loopJob?.isActive != true) {
             loopJob = scope.launch { connectionLoop() }
         }
@@ -62,7 +70,7 @@ class FreeChatService : Service() {
             } else {
                 val profile = serverRepository.activeProfile.first()
                 if (profile == null) {
-                    startForegroundNow("未配置服务器")
+                    startForegroundNow(getString(R.string.service_no_server))
                     delay(2_000)
                     stopSelf()
                     return
@@ -70,14 +78,19 @@ class FreeChatService : Service() {
                 try {
                     sessionHolder.connectForService(profile)
                 } catch (error: Exception) {
-                    startForegroundNow("连接失败：${error.message ?: "未知错误"}")
+                    startForegroundNow(
+                        getString(
+                            R.string.service_connect_failed,
+                            error.message ?: getString(UiR.string.common_unknown_error),
+                        ),
+                    )
                     delay(policy.delayForAttempt(attempt++))
                     continue
                 }
             }
 
             attempt = 0
-            startForegroundNow("已连接")
+            startForegroundNow(getString(R.string.service_connected))
             val notificationJob = scope.launch {
                 active.events.collect { message -> notifications.notifyMessage(message) }
             }
@@ -89,7 +102,7 @@ class FreeChatService : Service() {
 
             sessionHolder.invalidate(active)
             if (!currentCoroutineContext().isActive) break
-            startForegroundNow("连接已断开，正在重连…")
+            startForegroundNow(getString(R.string.service_reconnecting))
             delay(policy.delayForAttempt(attempt++))
         }
     }

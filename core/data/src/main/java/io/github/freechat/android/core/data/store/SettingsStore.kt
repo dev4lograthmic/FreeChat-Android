@@ -6,9 +6,11 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.edit
+import io.github.freechat.android.core.model.AppLanguage
 import io.github.freechat.android.core.model.ChatSourceOption
 import io.github.freechat.android.core.model.ConversationType
 import io.github.freechat.android.core.model.MessageContentSource
+import io.github.freechat.android.core.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -22,6 +24,8 @@ data class AppSettings(
     val developerSources: Set<ChatSourceOption> = setOf(ChatSourceOption.POST_HANDLE),
     val developerMessageContent: MessageContentSource = MessageContentSource.TEXT,
     val collapsedSections: Set<ConversationType> = emptySet(),
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val appLanguage: AppLanguage = AppLanguage.ENGLISH,
 )
 
 interface SettingsStore {
@@ -46,6 +50,8 @@ class DataStoreSettingsStore(
             preferences[DEVELOPER_SOURCES] = updated.developerSources.map { it.name }.toSet()
             preferences[DEVELOPER_MESSAGE_CONTENT] = updated.developerMessageContent.name
             preferences[COLLAPSED_SECTIONS] = updated.collapsedSections.map { it.name }.toSet()
+            preferences[THEME_MODE] = updated.themeMode.name
+            preferences[APP_LANGUAGE] = updated.appLanguage.tag
         }
     }
 
@@ -70,6 +76,10 @@ class DataStoreSettingsStore(
             ?.mapNotNull { name -> runCatching { ConversationType.valueOf(name) }.getOrNull() }
             ?.toSet()
             ?: emptySet(),
+        themeMode = this[THEME_MODE]
+            ?.let { name -> runCatching { ThemeMode.valueOf(name) }.getOrNull() }
+            ?: ThemeMode.SYSTEM,
+        appLanguage = AppLanguage.fromTag(this[APP_LANGUAGE]),
     )
 
     private companion object {
@@ -82,5 +92,7 @@ class DataStoreSettingsStore(
         val DEVELOPER_SOURCES = stringSetPreferencesKey("developer_sources")
         val DEVELOPER_MESSAGE_CONTENT = stringPreferencesKey("developer_message_content")
         val COLLAPSED_SECTIONS = stringSetPreferencesKey("collapsed_sections")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val APP_LANGUAGE = stringPreferencesKey("app_language")
     }
 }

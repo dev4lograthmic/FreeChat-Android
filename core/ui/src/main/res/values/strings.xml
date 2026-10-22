@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Navigation -->
+    <string name="nav_chat">Chats</string>
+    <string name="nav_friends">Friends</string>
+    <string name="nav_me">Me</string>
+
+    <!-- Common -->
+    <string name="common_cancel">Cancel</string>
+    <string name="common_create">Create</string>
+    <string name="common_close">Close</string>
+    <string name="common_back">Back</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_undo">Undo</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_settings">Settings</string>
+    <string name="common_connect_server">Connect server</string>
+    <string name="common_connected">Connected</string>
+    <string name="common_not_connected">Not connected</string>
+    <string name="common_search">Search</string>
+    <string name="common_more">More options</string>
+    <string name="common_unknown_error">Unknown error</string>
+
+    <!-- Drawer -->
+
+    <!-- Chat list -->
+    <string name="chat_title">Chats</string>
+    <string name="chat_search_placeholder">Search chats</string>
+    <string name="chat_section_system">System notifications</string>
+    <string name="chat_section_public">Public channels</string>
+    <string name="chat_section_private">Direct messages</string>
+    <string name="chat_waiting_title">Connected, waiting for messages</string>
+    <string name="chat_waiting_message">New messages will appear here.</string>
+    <string name="chat_empty_title">No server connected</string>
+    <string name="chat_empty_message">System notices, public channels and direct messages will appear after you connect to a Dalamud server.</string>
+    <string name="chat_search_empty_title">No messages found</string>
+    <string name="chat_search_empty_message">Try another keyword, or check that the server is connected.</string>
+    <string name="chat_no_preview">No messages</string>
+    <string name="chat_create_private">Create direct message</string>
+    <string name="chat_create_private_title">New direct message</string>
+    <string name="chat_create_private_name">Character name</string>
+    <string name="chat_create_private_world">World</string>
+    <string name="chat_create_private_action">Start chat</string>
+    <string name="chat_hide_conversation">Remove from list</string>
+    <string name="chat_hidden">Removed from list</string>
+    <string name="chat_open_conversation">Open conversation</string>
+    <string name="chat_time_yesterday">Yesterday</string>
+    <plurals name="chat_unread_count">
+        <item quantity="one">%d unread message</item>
+        <item quantity="other">%d unread messages</item>
+    </plurals>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_summary">App language and date formats</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_zh">简体中文</string>
+    <string name="settings_server_unnamed">Server</string>
+
+    <!-- Channel labels -->
+    <string name="channel_say">Say</string>
+    <string name="channel_shout">Shout</string>
+    <string name="channel_yell">Yell</string>
+    <string name="channel_party">Party</string>
+    <string name="channel_alliance">Alliance</string>
+    <string name="channel_free_company">Free Company</string>
+    <string name="channel_linkshell_1">Linkshell 1</string>
+    <string name="channel_linkshell_2">Linkshell 2</string>
+    <string name="channel_linkshell_3">Linkshell 3</string>
+    <string name="channel_linkshell_4">Linkshell 4</string>
+    <string name="channel_linkshell_5">Linkshell 5</string>
+    <string name="channel_linkshell_6">Linkshell 6</string>
+    <string name="channel_linkshell_7">Linkshell 7</string>
+    <string name="channel_linkshell_8">Linkshell 8</string>
+    <string name="channel_cross_linkshell_1">Cross-world Linkshell 1</string>
+    <string name="channel_cross_linkshell_2">Cross-world Linkshell 2</string>
+    <string name="channel_cross_linkshell_3">Cross-world Linkshell 3</string>
+    <string name="channel_cross_linkshell_4">Cross-world Linkshell 4</string>
+    <string name="channel_cross_linkshell_5">Cross-world Linkshell 5</string>
+    <string name="channel_cross_linkshell_6">Cross-world Linkshell 6</string>
+    <string name="channel_cross_linkshell_7">Cross-world Linkshell 7</string>
+    <string name="channel_cross_linkshell_8">Cross-world Linkshell 8</string>
+    <string name="channel_novice_network">Novice Network</string>
+    <string name="channel_pvp_team">PvP Team</string>
+    <string name="channel_emote">Emote</string>
+    <string name="system_system">System</string>
+    <string name="system_error">Error</string>
+    <string name="system_npc">NPC</string>
+    <string name="system_battle_log">Battle Log</string>
+</resources>

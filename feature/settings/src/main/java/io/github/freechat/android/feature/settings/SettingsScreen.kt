@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -25,6 +27,8 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -50,20 +54,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.freechat.android.core.data.export.ExportFormat
+import io.github.freechat.android.core.data.store.AppSettings
+import io.github.freechat.android.core.model.AppLanguage
 import io.github.freechat.android.core.model.ChatSourceOption
 import io.github.freechat.android.core.model.MessageContentSource
 import io.github.freechat.android.core.model.ServerProfile
+import io.github.freechat.android.core.model.ThemeMode
+import io.github.freechat.android.core.ui.R
 import io.github.freechat.android.core.ui.components.FreeChatAvatar
-import io.github.freechat.android.core.ui.components.FreeChatCard
 import io.github.freechat.android.core.ui.components.FreeChatSectionHeader
 import io.github.freechat.android.core.ui.components.FreeChatSettingRow
-import io.github.freechat.android.core.ui.components.FreeChatStatusPill
-import io.github.freechat.android.core.ui.components.ScreenBackground
+import io.github.freechat.android.core.ui.locale.LocaleController
 
 @Composable
 fun MeRoute(
@@ -82,15 +89,11 @@ fun MeRoute(
         ?: activeProfile?.worldName
     val connected = isConnected
 
-    ScreenBackground {
-        LazyColumn(
+    LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                Text("我", style = MaterialTheme.typography.headlineMedium)
-            }
             item {
                 Surface(
                     shape = MaterialTheme.shapes.extraLarge,
@@ -108,19 +111,27 @@ fun MeRoute(
                             )
                             Spacer(Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                FreeChatStatusPill(
-                                    text = if (connected) "已连接到服务端" else "未连接",
-                                    color = if (connected) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                    },
-                                    contentColor = if (connected) {
-                                        MaterialTheme.colorScheme.onPrimary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        modifier = Modifier.size(8.dp),
+                                        shape = CircleShape,
+                                        color = if (connected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    ) {}
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = if (connected) "已连接到服务端" else "未连接",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = if (connected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    )
+                                }
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     text = if (characterName != null) {
@@ -151,7 +162,7 @@ fun MeRoute(
                 }
             }
             item {
-                FreeChatCard {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                     Column {
                         FreeChatSettingRow(
                             icon = Icons.Default.Link,
@@ -178,7 +189,6 @@ fun MeRoute(
                 )
             }
         }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -232,7 +242,6 @@ fun SettingsScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        ScreenBackground {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -242,9 +251,23 @@ fun SettingsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                item { FreeChatSectionHeader(stringResource(R.string.settings_section_appearance), Modifier.padding(top = 0.dp)) }
+                item {
+                    AppearanceSettings(
+                        settings = settings,
+                        onThemeModeChange = { mode ->
+                            viewModel.updateSettings({ it.copy(themeMode = mode) })
+                        },
+                        onLanguageChange = { language ->
+                            viewModel.updateSettings({ it.copy(appLanguage = language) })
+                            LocaleController.setLanguage(context, language)
+                        },
+                    )
+                }
+
                 item { FreeChatSectionHeader("连接", Modifier.padding(top = 0.dp)) }
                 item {
-                    FreeChatCard {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column {
                             FreeChatSettingRow(
                                 icon = Icons.Default.Link,
@@ -267,7 +290,7 @@ fun SettingsScreen(
 
                 item { FreeChatSectionHeader("数据") }
                 item {
-                    FreeChatCard {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column {
                             FreeChatSettingRow(
                                 icon = Icons.Default.Download,
@@ -298,7 +321,7 @@ fun SettingsScreen(
 
                 item { FreeChatSectionHeader("通知") }
                 item {
-                    FreeChatCard {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column {
                             SwitchRow(
                                 title = "私聊通知",
@@ -432,7 +455,7 @@ fun SettingsScreen(
                     )
                 }
                 item {
-                    FreeChatCard {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column {
                             SwitchRow(
                                 title = "允许 raw 命令",
@@ -453,7 +476,6 @@ fun SettingsScreen(
                     }
                 }
             }
-        }
     }
 
     if (showClearDialog) {
@@ -478,6 +500,69 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun AppearanceSettings(
+    settings: AppSettings,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onLanguageChange: (AppLanguage) -> Unit,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_theme),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ThemeMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = settings.themeMode == mode,
+                        onClick = { onThemeModeChange(mode) },
+                        label = { Text(themeLabel(mode)) },
+                    )
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Text(
+                text = stringResource(R.string.settings_language),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppLanguage.entries.forEach { language ->
+                    FilterChip(
+                        selected = settings.appLanguage == language,
+                        onClick = { onLanguageChange(language) },
+                        label = { Text(languageLabel(language)) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun themeLabel(mode: ThemeMode): String = stringResource(
+    when (mode) {
+        ThemeMode.SYSTEM -> R.string.settings_theme_system
+        ThemeMode.LIGHT -> R.string.settings_theme_light
+        ThemeMode.DARK -> R.string.settings_theme_dark
+    },
+)
+
+@Composable
+private fun languageLabel(language: AppLanguage): String = stringResource(
+    when (language) {
+        AppLanguage.ENGLISH -> R.string.settings_language_en
+        AppLanguage.CHINESE -> R.string.settings_language_zh
+    },
+)
+
+@Composable
 private fun ServerRow(
     profile: ServerProfile,
     selected: Boolean,
@@ -493,7 +578,10 @@ private fun ServerRow(
     ) {
         RadioButton(selected = selected, onClick = onSelect)
         Column(modifier = Modifier.weight(1f)) {
-            Text(profile.serverName ?: profile.serverId, style = MaterialTheme.typography.titleMedium)
+            Text(
+                profile.serverName ?: stringResource(R.string.settings_server_unnamed),
+                style = MaterialTheme.typography.titleMedium,
+            )
             Text(
                 "${profile.host}:${profile.port}",
                 style = MaterialTheme.typography.bodyMedium,

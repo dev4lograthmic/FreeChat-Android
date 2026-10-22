@@ -1,3 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FreeChat</string>
+
+    <!-- Notifications and service -->
+    <string name="notif_channel_tell">Direct messages</string>
+    <string name="notif_channel_tell_desc">In-game TELL messages</string>
+    <string name="notif_channel_party">Party messages</string>
+    <string name="notif_channel_party_desc">Party and alliance chat</string>
+    <string name="notif_channel_linkshell">Linkshell messages</string>
+    <string name="notif_channel_linkshell_desc">Linkshell and cross-world linkshell chat</string>
+    <string name="notif_channel_system">System messages</string>
+    <string name="notif_channel_system_desc">System, error and battle log messages</string>
+    <string name="notif_channel_connection">Connection status</string>
+    <string name="notif_channel_connection_desc">Disconnect and reconnect status</string>
+    <string name="notif_channel_service">Background connection</string>
+    <string name="notif_channel_service_desc">Keeps the connection to the FreeChat server alive</string>
+    <string name="notif_new_message_title">New message</string>
+    <string name="notif_new_message_body">You received a new message</string>
+    <string name="service_stop">Disconnect</string>
+    <string name="service_connecting">Connecting…</string>
+    <string name="service_no_server">No server configured</string>
+    <string name="service_connect_failed">Connection failed: %1$s</string>
+    <string name="service_connected">Connected</string>
+    <string name="service_reconnecting">Disconnected, reconnecting…</string>
 </resources>

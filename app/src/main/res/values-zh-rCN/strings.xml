@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FreeChat</string>
+
+    <!-- Notifications and service -->
+    <string name="notif_channel_tell">私聊消息</string>
+    <string name="notif_channel_tell_desc">游戏内 TELL 私聊</string>
+    <string name="notif_channel_party">小队消息</string>
+    <string name="notif_channel_party_desc">小队与团队聊天</string>
+    <string name="notif_channel_linkshell">通讯贝消息</string>
+    <string name="notif_channel_linkshell_desc">通讯贝与跨服通讯贝聊天</string>
+    <string name="notif_channel_system">系统消息</string>
+    <string name="notif_channel_system_desc">系统、错误与战斗日志</string>
+    <string name="notif_channel_connection">连接状态</string>
+    <string name="notif_channel_connection_desc">断开与重连状态</string>
+    <string name="notif_channel_service">后台连接服务</string>
+    <string name="notif_channel_service_desc">保持与 FreeChat 服务端的连接</string>
+    <string name="notif_new_message_title">新消息</string>
+    <string name="notif_new_message_body">收到一条新消息</string>
+    <string name="service_stop">断开</string>
+    <string name="service_connecting">正在连接…</string>
+    <string name="service_no_server">未配置服务器</string>
+    <string name="service_connect_failed">连接失败：%1$s</string>
+    <string name="service_connected">已连接</string>
+    <string name="service_reconnecting">连接已断开，正在重连…</string>
+</resources>

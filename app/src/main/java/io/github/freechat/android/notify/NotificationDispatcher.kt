@@ -29,45 +29,45 @@ class NotificationDispatcher @Inject constructor(
         system.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_TELL,
-                "私聊消息",
+                context.getString(R.string.notif_channel_tell),
                 NotificationManager.IMPORTANCE_HIGH,
-            ).apply { description = "游戏内 TELL 私聊" },
+            ).apply { description = context.getString(R.string.notif_channel_tell_desc) },
         )
         system.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_PARTY,
-                "小队消息",
+                context.getString(R.string.notif_channel_party),
                 NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = "小队/团队聊天" },
+            ).apply { description = context.getString(R.string.notif_channel_party_desc) },
         )
         system.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_LINKSHELL,
-                "通讯贝消息",
+                context.getString(R.string.notif_channel_linkshell),
                 NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = "通讯贝/跨服通讯贝" },
+            ).apply { description = context.getString(R.string.notif_channel_linkshell_desc) },
         )
         system.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_SYSTEM,
-                "系统消息",
+                context.getString(R.string.notif_channel_system),
                 NotificationManager.IMPORTANCE_LOW,
-            ).apply { description = "系统/错误/战斗日志" },
+            ).apply { description = context.getString(R.string.notif_channel_system_desc) },
         )
         system.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_CONNECTION,
-                "连接状态",
+                context.getString(R.string.notif_channel_connection),
                 NotificationManager.IMPORTANCE_LOW,
-            ).apply { description = "连接断开/重连状态" },
+            ).apply { description = context.getString(R.string.notif_channel_connection_desc) },
         )
         system.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_SERVICE,
-                "后台连接服务",
+                context.getString(R.string.notif_channel_service),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "保持与 FreeChat 服务端的连接"
+                description = context.getString(R.string.notif_channel_service_desc)
                 setShowBadge(false)
             },
         )
@@ -84,8 +84,8 @@ class NotificationDispatcher @Inject constructor(
         if (!manager.areNotificationsEnabled()) return
 
         val hide = settings.lockScreenHideContent
-        val title = if (hide) "新消息" else message.senderName
-        val body = if (hide) "收到一条新消息" else message.text
+        val title = if (hide) context.getString(R.string.notif_new_message_title) else message.senderName
+        val body = if (hide) context.getString(R.string.notif_new_message_body) else message.text
         val intent = Intent(context, MainActivity::class.java).apply {
             putExtra(EXTRA_CONVERSATION_ID, message.conversationId)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -134,8 +134,8 @@ class NotificationDispatcher @Inject constructor(
         )
         return NotificationCompat.Builder(context, CHANNEL_SERVICE)
             .setSmallIcon(R.drawable.ic_notification)
-            .addAction(0, "断开", stopPending)
-            .setContentTitle("FreeChat")
+            .addAction(0, context.getString(R.string.service_stop), stopPending)
+            .setContentTitle(context.getString(R.string.app_name))
             .setContentText(text)
             .setContentIntent(pending)
             .setOngoing(true)

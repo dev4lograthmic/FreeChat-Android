@@ -1,10 +1,12 @@
 package io.github.freechat.android.feature.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,16 +17,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,16 +45,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.freechat.android.core.model.FriendInfo
 import io.github.freechat.android.core.ui.components.FreeChatAvatar
-import io.github.freechat.android.core.ui.components.FreeChatCard
 import io.github.freechat.android.core.ui.components.FreeChatEmptyState
-import io.github.freechat.android.core.ui.components.FreeChatSearchBar
-import io.github.freechat.android.core.ui.components.ScreenBackground
 import kotlinx.coroutines.launch
 
 private enum class FriendFilter {
@@ -61,9 +68,9 @@ private enum class FriendSort {
     WORLD,
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendsScreen(
-    onOpenDrawer: () -> Unit,
     onOpenPairing: () -> Unit,
     onOpenConversation: (String) -> Unit,
     viewModel: FriendsViewModel = hiltViewModel(),
@@ -97,15 +104,40 @@ fun FriendsScreen(
             }
         }
 
-    ScreenBackground {
-        Column(modifier = Modifier.fillMaxSize()) {
-            FreeChatSearchBar(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = "搜索好友",
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface),
+    ) {
+
+            SearchBar(
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        query = query,
+                        onQueryChange = { query = it },
+                        onSearch = {},
+                        expanded = false,
+                        onExpandedChange = {},
+                        placeholder = { Text("搜索好友") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null)
+                        },
+                        trailingIcon = if (query.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { query = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = null)
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                    )
+                },
+                expanded = false,
+                onExpandedChange = {},
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                onMenuClick = onOpenDrawer,
-            )
+                windowInsets = WindowInsets(0, 0, 0, 0),
+            ) {}
 
             Row(
                 modifier = Modifier
@@ -203,7 +235,10 @@ fun FriendsScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(visible, key = { it.contentId }) { friend ->
-                            FriendCard(friend) {
+                            FriendCard(
+                                friend = friend,
+                                modifier = Modifier.animateItem(),
+                            ) {
                                 scope.launch {
                                     val id = viewModel.openTell(friend)
                                     if (id != null) onOpenConversation(id)
@@ -213,12 +248,15 @@ fun FriendsScreen(
                     }
                 }
             }
-        }
     }
 }
 
 @Composable
-private fun FriendCard(friend: FriendInfo, onClick: () -> Unit) {
+private fun FriendCard(
+    friend: FriendInfo,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val world = friend.currentWorldName ?: friend.homeWorldName
     val details = listOfNotNull(
         friend.freeCompanyTag?.let { "《$it》" },
@@ -232,7 +270,13 @@ private fun FriendCard(friend: FriendInfo, onClick: () -> Unit) {
         else -> MaterialTheme.colorScheme.tertiary
     }
 
-    FreeChatCard(onClick = onClick) {
+    Card(
+        modifier = modifier,
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,

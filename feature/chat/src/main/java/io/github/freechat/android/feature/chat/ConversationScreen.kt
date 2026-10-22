@@ -1,5 +1,6 @@
 package io.github.freechat.android.feature.chat
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -161,7 +162,10 @@ fun ConversationRoute(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 items(messages, key = { it.messageId }) { message ->
-                    MessageBubble(message)
+                    MessageBubble(
+                        message = message,
+                        modifier = Modifier.animateItem(),
+                    )
                 }
             }
         }
@@ -169,7 +173,10 @@ fun ConversationRoute(
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessage) {
+private fun MessageBubble(
+    message: ChatMessage,
+    modifier: Modifier = Modifier,
+) {
     val horizontalAlignment = if (message.outgoing) Alignment.End else Alignment.Start
     val bubbleShape = if (message.outgoing) {
         RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 6.dp)
@@ -188,7 +195,7 @@ private fun MessageBubble(message: ChatMessage) {
     }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 2.dp),
         horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start,
@@ -206,6 +213,7 @@ private fun MessageBubble(message: ChatMessage) {
                 )
             }
             Surface(
+                modifier = Modifier.animateContentSize(),
                 color = container,
                 contentColor = contentColor,
                 shape = bubbleShape,

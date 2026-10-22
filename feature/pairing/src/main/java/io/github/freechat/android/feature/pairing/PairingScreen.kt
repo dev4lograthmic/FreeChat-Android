@@ -16,6 +16,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,9 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.freechat.android.core.ui.components.FreeChatCard
 import io.github.freechat.android.core.ui.components.FreeChatSectionHeader
-import io.github.freechat.android.core.ui.components.ScreenBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,14 +91,13 @@ fun PairingRoute(
             )
         },
     ) { padding ->
-        ScreenBackground {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 item {
-                    FreeChatCard {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Row(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -153,7 +152,7 @@ fun PairingRoute(
 
                 item { FreeChatSectionHeader("手动连接") }
                 item {
-                    FreeChatCard {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -239,6 +238,5 @@ fun PairingRoute(
                 }
                 item { Spacer(Modifier.height(24.dp)) }
             }
-        }
     }
 }
