@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -55,8 +54,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.FriendInfo
 import io.github.freechat.android.core.ui.R
+import io.github.freechat.android.core.ui.components.ConnectionStatusPill
 import io.github.freechat.android.core.ui.components.FreeChatAvatar
 import io.github.freechat.android.core.ui.components.FreeChatEmptyState
 import io.github.freechat.android.core.ui.theme.FreeChatTheme
@@ -86,12 +87,14 @@ fun FriendsRoute(
     viewModel: FriendsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { viewModel.load() }
 
     FriendsScreen(
         state = state,
+        connectionStatus = connectionStatus,
         onRefresh = { viewModel.load(force = true) },
         onOpenPairing = onOpenPairing,
         onOpenFriend = { friend ->
@@ -106,6 +109,7 @@ fun FriendsRoute(
 @Composable
 fun FriendsScreen(
     state: FriendsUiState,
+    connectionStatus: ConnectionStatus,
     onRefresh: () -> Unit,
     onOpenPairing: () -> Unit,
     onOpenFriend: (FriendInfo) -> Unit,
@@ -137,6 +141,7 @@ fun FriendsScreen(
     val error = state.error
     val errorMessage = when (error) {
         FriendsError.NOT_CONNECTED -> stringResource(R.string.friends_not_connected_message)
+        FriendsError.CONNECTING -> stringResource(R.string.friends_connecting_message)
         FriendsError.DISCONNECTED -> stringResource(R.string.friends_disconnected_message)
         FriendsError.LOAD_FAILED -> stringResource(R.string.friends_error_message)
         null -> null
@@ -161,6 +166,10 @@ fun FriendsScreen(
                     )
                 },
                 actions = {
+                    ConnectionStatusPill(
+                        status = connectionStatus,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
                     IconButton(
                         onClick = onRefresh,
                         enabled = !state.isLoading,
@@ -286,11 +295,13 @@ private fun FriendsErrorState(
 ) {
     val title = when (error) {
         FriendsError.NOT_CONNECTED -> R.string.friends_not_connected_title
+        FriendsError.CONNECTING -> R.string.friends_connecting_title
         FriendsError.DISCONNECTED -> R.string.friends_disconnected_title
         FriendsError.LOAD_FAILED -> R.string.friends_error_title
     }
     val message = when (error) {
         FriendsError.NOT_CONNECTED -> R.string.friends_not_connected_message
+        FriendsError.CONNECTING -> R.string.friends_connecting_message
         FriendsError.DISCONNECTED -> R.string.friends_disconnected_message
         FriendsError.LOAD_FAILED -> R.string.friends_error_message
     }
@@ -300,18 +311,20 @@ private fun FriendsErrorState(
         title = stringResource(title),
         message = stringResource(message),
     ) {
-        Button(
-            onClick = if (error == FriendsError.LOAD_FAILED) onRefresh else onOpenPairing,
-        ) {
-            Text(
-                stringResource(
-                    if (error == FriendsError.LOAD_FAILED) {
-                        R.string.common_retry
-                    } else {
-                        R.string.common_connect_server
-                    },
-                ),
-            )
+        if (error != FriendsError.CONNECTING) {
+            Button(
+                onClick = if (error == FriendsError.LOAD_FAILED) onRefresh else onOpenPairing,
+            ) {
+                Text(
+                    stringResource(
+                        if (error == FriendsError.LOAD_FAILED) {
+                            R.string.common_retry
+                        } else {
+                            R.string.common_connect_server
+                        },
+                    ),
+                )
+            }
         }
     }
 }
@@ -427,11 +440,6 @@ private fun FriendRow(
 ) {
     val world = friend.homeWorldName
         ?: stringResource(R.string.friends_unknown_world)
-    val presence = friend.presence()
-    val statusColor = when (presence) {
-        FriendPresence.ONLINE -> MaterialTheme.colorScheme.primary
-        FriendPresence.OFFLINE -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
 
     ListItem(
         headlineContent = {
@@ -454,19 +462,6 @@ private fun FriendRow(
         leadingContent = {
             FreeChatAvatar(label = friend.name)
         },
-        trailingContent = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Badge(containerColor = statusColor)
-                Text(
-                    text = stringResource(presence.labelRes()),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = statusColor,
-                )
-            }
-        },
         modifier = modifier.clickable(onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
         tonalElevation = 0.dp,
@@ -480,11 +475,6 @@ private fun FriendFilter.labelRes(): Int = when (this) {
     FriendFilter.ALL -> R.string.friends_filter_all
     FriendFilter.ONLINE -> R.string.friends_filter_online
     FriendFilter.OFFLINE -> R.string.friends_filter_offline
-}
-
-private fun FriendPresence.labelRes(): Int = when (this) {
-    FriendPresence.ONLINE -> R.string.friends_status_online
-    FriendPresence.OFFLINE -> R.string.friends_status_offline
 }
 
 private fun FriendSort.labelRes(): Int = when (this) {
@@ -502,6 +492,7 @@ private fun FriendsScreenPreview() {
                 friends = previewFriends(),
                 loaded = true,
             ),
+            connectionStatus = ConnectionStatus.ONLINE,
             onRefresh = {},
             onOpenPairing = {},
             onOpenFriend = {},
@@ -515,6 +506,7 @@ private fun FriendsScreenEmptyPreview() {
     FreeChatTheme {
         FriendsScreen(
             state = FriendsUiState(loaded = true),
+            connectionStatus = ConnectionStatus.OFFLINE,
             onRefresh = {},
             onOpenPairing = {},
             onOpenFriend = {},
@@ -531,6 +523,7 @@ private fun FriendsScreenErrorPreview() {
                 error = FriendsError.NOT_CONNECTED,
                 loaded = true,
             ),
+            connectionStatus = ConnectionStatus.OFFLINE,
             onRefresh = {},
             onOpenPairing = {},
             onOpenFriend = {},

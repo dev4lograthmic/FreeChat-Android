@@ -1,5 +1,6 @@
 package io.github.freechat.android.core.data.chat
 
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.ServerProfile
 import kotlinx.coroutines.flow.StateFlow
 
@@ -9,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
  */
 interface ChatConnector {
     val active: ActiveChat?
-    val isConnected: StateFlow<Boolean>
+    val connectionStatus: StateFlow<ConnectionStatus>
 
     suspend fun connect(profile: ServerProfile, pairingCode: String?): ActiveChat
     suspend fun close()

@@ -18,7 +18,7 @@ class FreeChatApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        LocaleController.ensureDefault(this)
+        notifications.ensureChannels()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

@@ -11,6 +11,7 @@ import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.data.store.SettingsStore
 import io.github.freechat.android.core.model.ChatConversation
 import io.github.freechat.android.core.model.ChatMessage
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.ConversationType
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -88,7 +89,7 @@ class ChatHomeViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
-    val isConnected: StateFlow<Boolean> = connector.isConnected
+    val connectionStatus: StateFlow<ConnectionStatus> = connector.connectionStatus
 
     fun search(query: String) {
         searchJob?.cancel()

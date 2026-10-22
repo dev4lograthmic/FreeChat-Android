@@ -11,6 +11,7 @@ import io.github.freechat.android.core.data.repository.ChatRepository
 import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.data.store.AppSettings
 import io.github.freechat.android.core.data.store.SettingsStore
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.ServerProfile
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,11 +50,13 @@ class SettingsViewModel @Inject constructor(
     val message: StateFlow<String?> = _message.asStateFlow()
 
     val activeChat get() = connector.active
-    val isConnected = connector.isConnected
+    val connectionStatus = connector.connectionStatus
 
     fun selectProfile(profileId: String) {
         viewModelScope.launch {
-            if (activeProfile.value?.profileId == profileId && connector.isConnected.value) {
+            if (activeProfile.value?.profileId == profileId &&
+                connector.connectionStatus.value == ConnectionStatus.ONLINE
+            ) {
                 return@launch
             }
             serverRepository.setActive(profileId)

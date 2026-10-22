@@ -25,7 +25,7 @@ data class AppSettings(
     val developerMessageContent: MessageContentSource = MessageContentSource.TEXT,
     val collapsedSections: Set<ConversationType> = emptySet(),
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val appLanguage: AppLanguage = AppLanguage.ENGLISH,
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
 )
 
 interface SettingsStore {

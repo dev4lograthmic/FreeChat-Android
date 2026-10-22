@@ -8,7 +8,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -32,9 +31,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -42,7 +41,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -61,7 +64,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -88,8 +90,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.freechat.android.core.data.conversation.ConversationLabels
 import io.github.freechat.android.core.model.ChatConversation
 import io.github.freechat.android.core.model.ChatMessage
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.ConversationType
 import io.github.freechat.android.core.ui.R
+import io.github.freechat.android.core.ui.components.ConnectionStatusPill
 import io.github.freechat.android.core.ui.components.FreeChatAvatar
 import io.github.freechat.android.core.ui.components.FreeChatEmptyState
 import io.github.freechat.android.core.ui.components.FreeChatSectionHeader
@@ -112,14 +116,14 @@ fun ChatRoute(
 ) {
     val conversations by viewModel.conversations.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
-    val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
+    val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle()
     val collapsedSections by viewModel.collapsedSections.collectAsStateWithLifecycle()
     val linkshellNames by viewModel.linkshellNames.collectAsStateWithLifecycle()
 
     ChatScreen(
         conversations = conversations,
         searchResults = searchResults,
-        isConnected = isConnected,
+        connectionStatus = connectionStatus,
         collapsedSections = collapsedSections,
         linkshellNames = linkshellNames,
         onSearch = viewModel::search,
@@ -142,7 +146,7 @@ fun ChatRoute(
 fun ChatScreen(
     conversations: List<ChatConversation>,
     searchResults: List<ChatMessage>,
-    isConnected: Boolean,
+    connectionStatus: ConnectionStatus,
     collapsedSections: Set<ConversationType>,
     linkshellNames: Map<String, String>,
     onSearch: (String) -> Unit,
@@ -154,6 +158,7 @@ fun ChatScreen(
     onCreateChannelChat: suspend (String) -> String?,
     onOpenPairing: () -> Unit,
 ) {
+    val isConnected = connectionStatus == ConnectionStatus.ONLINE
     var query by remember { mutableStateOf("") }
     var showCreateSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -252,7 +257,12 @@ fun ChatScreen(
                         style = MaterialTheme.typography.titleLarge,
                     )
                 },
-                actions = { ConnectionStatusPill(isConnected = isConnected) },
+                actions = {
+                    ConnectionStatusPill(
+                        status = connectionStatus,
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
@@ -262,7 +272,7 @@ fun ChatScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             AnimatedVisibility(
-                visible = fabVisible,
+                visible = fabVisible && isConnected,
                 enter = scaleIn() + fadeIn(),
                 exit = scaleOut() + fadeOut(),
             ) {
@@ -355,14 +365,20 @@ fun ChatScreen(
                 }
             } else if (visibleConversations.isEmpty()) {
                 item {
-                    if (isConnected) {
-                        FreeChatEmptyState(
+                    when (connectionStatus) {
+                        ConnectionStatus.ONLINE -> FreeChatEmptyState(
                             icon = Icons.AutoMirrored.Filled.Chat,
                             title = stringResource(R.string.chat_waiting_title),
                             message = stringResource(R.string.chat_waiting_message),
                         )
-                    } else {
-                        FreeChatEmptyState(
+
+                        ConnectionStatus.CONNECTING -> FreeChatEmptyState(
+                            icon = Icons.AutoMirrored.Filled.Chat,
+                            title = stringResource(R.string.chat_connecting_title),
+                            message = stringResource(R.string.chat_connecting_message),
+                        )
+
+                        ConnectionStatus.OFFLINE -> FreeChatEmptyState(
                             icon = Icons.AutoMirrored.Filled.Chat,
                             title = stringResource(R.string.chat_empty_title),
                             message = stringResource(R.string.chat_empty_message),
@@ -486,39 +502,6 @@ fun ChatScreen(
 }
 
 
-@Composable
-private fun ConnectionStatusPill(isConnected: Boolean) {
-    val containerColor by animateColorAsState(
-        targetValue = if (isConnected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHighest
-        },
-        label = "connectionContainer",
-    )
-    val contentColor by animateColorAsState(
-        targetValue = if (isConnected) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        label = "connectionContent",
-    )
-    Surface(
-        modifier = Modifier.padding(end = 12.dp),
-        shape = CircleShape,
-        color = containerColor,
-        contentColor = contentColor,
-    ) {
-        Text(
-            text = stringResource(
-                if (isConnected) R.string.common_connected else R.string.common_not_connected,
-            ),
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-        )
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -724,6 +707,62 @@ private enum class CreateConversationMode {
     CROSS_LINKSHELL,
 }
 
+private data class WorldGroup(
+    val dataCenter: String,
+    val worlds: List<String>,
+)
+
+private val WORLD_GROUPS = listOf(
+    WorldGroup(
+        dataCenter = "陆行鸟",
+        worlds = listOf(
+            "拉诺西亚",
+            "幻影群岛",
+            "神意之地",
+            "红玉海",
+            "萌芽池",
+            "宇宙和音",
+            "沃仙曦染",
+            "晨曦王座",
+        ),
+    ),
+    WorldGroup(
+        dataCenter = "莫古力",
+        worlds = listOf(
+            "白银乡",
+            "白金幻象",
+            "神拳痕",
+            "潮风亭",
+            "拂晓之间",
+            "旅人栈桥",
+            "龙巢神殿",
+            "梦羽宝镜",
+        ),
+    ),
+    WorldGroup(
+        dataCenter = "猫小胖",
+        worlds = listOf(
+            "紫水栈桥",
+            "延夏",
+            "静语庄园",
+            "摩杜纳",
+            "海猫茶屋",
+            "柔风海湾",
+            "琥珀原",
+        ),
+    ),
+    WorldGroup(
+        dataCenter = "豆豆柴",
+        worlds = listOf(
+            "水晶塔",
+            "银泪湖",
+            "太阳海岸",
+            "伊修加德",
+            "红茶川",
+        ),
+    ),
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateConversationSheet(
@@ -735,6 +774,7 @@ private fun CreateConversationSheet(
     var mode by remember { mutableStateOf(CreateConversationMode.PRIVATE) }
     var name by remember { mutableStateOf("") }
     var world by remember { mutableStateOf("") }
+    var worldExpanded by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val linkshellChannels = remember {
         ConversationLabels.linkshellChannels.keys.filterNot { it.startsWith("CROSS_") }
@@ -792,13 +832,64 @@ private fun CreateConversationSheet(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
-                        value = world,
-                        onValueChange = { world = it },
-                        label = { Text(stringResource(R.string.chat_create_private_world)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    ExposedDropdownMenuBox(
+                        expanded = worldExpanded,
+                        onExpandedChange = { worldExpanded = it },
+                    ) {
+                        OutlinedTextField(
+                            value = world,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.chat_create_private_world)) },
+                            singleLine = true,
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = worldExpanded)
+                            },
+                            modifier = Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .fillMaxWidth(),
+                        )
+                        ExposedDropdownMenu(
+                            expanded = worldExpanded,
+                            onDismissRequest = { worldExpanded = false },
+                            modifier = Modifier.heightIn(max = 420.dp),
+                        ) {
+                            WORLD_GROUPS.forEachIndexed { index, group ->
+                                Text(
+                                    text = group.dataCenter,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = if (index == 0) 8.dp else 20.dp,
+                                        bottom = 4.dp,
+                                    ),
+                                )
+                                group.worlds.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        onClick = {
+                                            world = option
+                                            worldExpanded = false
+                                        },
+                                        leadingIcon = if (option == world) {
+                                            {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = null,
+                                                )
+                                            }
+                                        } else {
+                                            null
+                                        },
+                                        contentPadding =
+                                            ExposedDropdownMenuDefaults.ItemContentPadding,
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
@@ -932,7 +1023,7 @@ private fun ChatScreenPreview() {
         ChatScreen(
             conversations = previewConversations(),
             searchResults = emptyList(),
-            isConnected = true,
+            connectionStatus = ConnectionStatus.ONLINE,
             collapsedSections = emptySet(),
             linkshellNames = emptyMap(),
             onSearch = {},
@@ -954,7 +1045,7 @@ private fun ChatScreenEmptyPreview() {
         ChatScreen(
             conversations = emptyList(),
             searchResults = emptyList(),
-            isConnected = false,
+            connectionStatus = ConnectionStatus.OFFLINE,
             collapsedSections = emptySet(),
             linkshellNames = emptyMap(),
             onSearch = {},
@@ -976,7 +1067,7 @@ private fun ChatScreenCollapsedPreview() {
         ChatScreen(
             conversations = previewConversations(),
             searchResults = emptyList(),
-            isConnected = true,
+            connectionStatus = ConnectionStatus.ONLINE,
             collapsedSections = ConversationType.entries.toSet(),
             linkshellNames = mapOf("LINKSHELL_1" to "Crystal Guild"),
             onSearch = {},

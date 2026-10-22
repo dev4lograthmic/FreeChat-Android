@@ -183,11 +183,6 @@ fun FreeChatApp(deepLink: String? = null, conversationId: String? = null) {
         ) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
-                onOpenPairing = {
-                    navController.navigate(Routes.pairing()) {
-                        launchSingleTop = true
-                    }
-                },
                 onOpenDeveloperOptions = {
                     navController.navigate(Routes.DEVELOPER) {
                         launchSingleTop = true

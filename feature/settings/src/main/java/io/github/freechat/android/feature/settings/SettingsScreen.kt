@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,8 +30,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Info
@@ -41,6 +44,7 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -50,6 +54,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
@@ -61,6 +67,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,6 +78,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,6 +89,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.freechat.android.core.data.export.ExportFormat
 import io.github.freechat.android.core.data.store.AppSettings
 import io.github.freechat.android.core.model.AppLanguage
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.ServerProfile
 import io.github.freechat.android.core.model.SessionInfo
 import io.github.freechat.android.core.model.ThemeMode
@@ -101,13 +110,13 @@ fun MeRoute(
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val activeProfile by viewModel.activeProfile.collectAsStateWithLifecycle()
     val activeChat = viewModel.activeChat
-    val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
+    val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle()
 
     MeScreen(
         profiles = profiles,
         activeProfile = activeProfile,
         activeSession = activeChat?.sessionInfo,
-        isConnected = isConnected,
+        connectionStatus = connectionStatus,
         onOpenSettings = onOpenSettings,
         onOpenPairing = onOpenPairing,
         onOpenAbout = onOpenAbout,
@@ -121,7 +130,7 @@ private fun MeScreen(
     profiles: List<ServerProfile>,
     activeProfile: ServerProfile?,
     activeSession: SessionInfo?,
-    isConnected: Boolean,
+    connectionStatus: ConnectionStatus,
     onOpenSettings: () -> Unit,
     onOpenPairing: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -132,11 +141,16 @@ private fun MeScreen(
         targetValue = if (sessionsExpanded) 180f else 0f,
         label = "sessionArrow",
     )
-    val currentSessionConnected = isConnected &&
+    val currentSessionConnected = connectionStatus == ConnectionStatus.ONLINE &&
         activeProfile != null &&
         activeSession != null &&
         activeSession.profileId == activeProfile.profileId &&
         activeSession.characterId == activeProfile.characterId
+    val topStatus = when {
+        currentSessionConnected -> ConnectionStatus.ONLINE
+        connectionStatus == ConnectionStatus.CONNECTING -> ConnectionStatus.CONNECTING
+        else -> ConnectionStatus.OFFLINE
+    }
 
     val characterName = activeSession?.characterName
         ?.takeIf { it.isNotBlank() }
@@ -197,28 +211,23 @@ private fun MeScreen(
                             Spacer(Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Badge(
-                                        containerColor = if (currentSessionConnected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                    )
+                                    val statusColor = when (topStatus) {
+                                        ConnectionStatus.ONLINE -> MaterialTheme.colorScheme.primary
+                                        ConnectionStatus.CONNECTING -> MaterialTheme.colorScheme.tertiary
+                                        ConnectionStatus.OFFLINE -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                    Badge(containerColor = statusColor)
                                     Spacer(Modifier.width(6.dp))
                                     Text(
                                         text = stringResource(
-                                            if (currentSessionConnected) {
-                                                R.string.common_connected
-                                            } else {
-                                                R.string.common_not_connected
+                                            when (topStatus) {
+                                                ConnectionStatus.ONLINE -> R.string.common_connected
+                                                ConnectionStatus.CONNECTING -> R.string.common_connecting
+                                                ConnectionStatus.OFFLINE -> R.string.common_not_connected
                                             },
                                         ),
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = if (currentSessionConnected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
+                                        color = statusColor,
                                     )
                                 }
                                 Spacer(Modifier.height(6.dp))
@@ -237,12 +246,6 @@ private fun MeScreen(
                                 )
                             }
                         }
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = stringResource(R.string.me_tagline),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
                 }
             }
@@ -295,7 +298,8 @@ private fun MeScreen(
                                         SessionProfileRow(
                                             profile = profile,
                                             active = profile.profileId == activeProfile?.profileId,
-                                            connected = isConnected &&
+                                            connectionStatus = connectionStatus,
+                                            connected = connectionStatus == ConnectionStatus.ONLINE &&
                                                 activeSession?.profileId == profile.profileId &&
                                                 activeSession.characterId == profile.characterId,
                                             onSelect = {
@@ -369,9 +373,6 @@ private fun MeScreen(
                         headlineContent = {
                             Text(stringResource(R.string.me_section_about))
                         },
-                        supportingContent = {
-                            Text(stringResource(R.string.me_about_description))
-                        },
                         leadingContent = {
                             Icon(Icons.Default.Info, contentDescription = null)
                         },
@@ -397,9 +398,11 @@ private fun MeScreen(
 private fun SessionProfileRow(
     profile: ServerProfile,
     active: Boolean,
+    connectionStatus: ConnectionStatus,
     connected: Boolean,
     onSelect: () -> Unit,
 ) {
+    val connecting = active && connectionStatus == ConnectionStatus.CONNECTING
     val characterName = profile.characterName
     val title = when {
         characterName == null -> stringResource(R.string.settings_character_unnamed)
@@ -408,16 +411,19 @@ private fun SessionProfileRow(
     }
     val containerColor = when {
         connected -> MaterialTheme.colorScheme.primaryContainer
+        connecting -> MaterialTheme.colorScheme.tertiaryContainer
         active -> MaterialTheme.colorScheme.secondaryContainer
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
     val contentColor = when {
         connected -> MaterialTheme.colorScheme.onPrimaryContainer
+        connecting -> MaterialTheme.colorScheme.onTertiaryContainer
         active -> MaterialTheme.colorScheme.onSecondaryContainer
         else -> MaterialTheme.colorScheme.onSurface
     }
     val supportingColor = when {
         connected -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+        connecting -> MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
         active -> MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -448,7 +454,7 @@ private fun SessionProfileRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Badge(
-                    containerColor = if (connected) {
+                    containerColor = if (connected || connecting) {
                         contentColor
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -456,10 +462,14 @@ private fun SessionProfileRow(
                 )
                 Text(
                     text = stringResource(
-                        if (connected) R.string.common_connected else R.string.common_not_connected,
+                        when {
+                            connected -> R.string.common_connected
+                            connecting -> R.string.common_connecting
+                            else -> R.string.common_not_connected
+                        },
                     ),
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (connected || active) {
+                    color = if (connected || connecting || active) {
                         contentColor
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -486,7 +496,7 @@ private fun MeScreenPreview() {
             profiles = listOf(profile),
             activeProfile = profile,
             activeSession = previewSession(profile),
-            isConnected = true,
+            connectionStatus = ConnectionStatus.ONLINE,
             onOpenSettings = {},
             onOpenPairing = {},
             onOpenAbout = {},
@@ -504,7 +514,7 @@ private fun MeScreenDisconnectedPreview() {
             profiles = listOf(profile),
             activeProfile = profile,
             activeSession = null,
-            isConnected = false,
+            connectionStatus = ConnectionStatus.OFFLINE,
             onOpenSettings = {},
             onOpenPairing = {},
             onOpenAbout = {},
@@ -540,18 +550,17 @@ private fun previewSession(profile: ServerProfile) = SessionInfo(
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    onOpenPairing: () -> Unit,
     onOpenDeveloperOptions: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val profiles by viewModel.profiles.collectAsStateWithLifecycle()
-    val activeProfile by viewModel.activeProfile.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     var includeRaw by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
+    val exportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(message) {
         message?.let {
@@ -611,26 +620,16 @@ fun SettingsScreen(
                     )
                 }
 
-                item { FreeChatSectionHeader(stringResource(R.string.settings_section_connection), Modifier.padding(top = 0.dp)) }
+                item { FreeChatSectionHeader(stringResource(R.string.settings_section_server)) }
                 item {
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                        Column {
-                            FreeChatSettingRow(
-                                icon = Icons.Default.Link,
-                                title = "连接服务器",
-                                description = "扫码、深链或手动输入",
-                                onClick = onOpenPairing,
-                            )
-                            profiles.forEach { profile ->
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                ServerRow(
-                                    profile = profile,
-                                    selected = profile.profileId == activeProfile?.profileId,
-                                    onSelect = { viewModel.selectProfile(profile.profileId) },
-                                    onDelete = { viewModel.deleteProfile(profile.profileId) },
-                                )
-                            }
-                        }
+                        SwitchRow(
+                            title = "订阅战斗日志",
+                            checked = settings.subscribeBattleLog,
+                            onCheckedChange = { value ->
+                                viewModel.updateSettings({ it.copy(subscribeBattleLog = value) }, reconnect = true)
+                            },
+                        )
                     }
                 }
 
@@ -640,20 +639,8 @@ fun SettingsScreen(
                         Column {
                             FreeChatSettingRow(
                                 icon = Icons.Default.Download,
-                                title = "导出 JSON",
-                                onClick = { jsonLauncher.launch("freechat.json") },
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            FreeChatSettingRow(
-                                icon = Icons.Default.Download,
-                                title = "导出 TXT",
-                                onClick = { txtLauncher.launch("freechat.txt") },
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            SwitchRow(
-                                title = "导出包含原始数据",
-                                checked = includeRaw,
-                                onCheckedChange = { includeRaw = it },
+                                title = stringResource(R.string.settings_export),
+                                onClick = { showExportSheet = true },
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             FreeChatSettingRow(
@@ -686,14 +673,6 @@ fun SettingsScreen(
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             SwitchRow(
-                                title = "订阅战斗日志",
-                                checked = settings.subscribeBattleLog,
-                                onCheckedChange = { value ->
-                                    viewModel.updateSettings({ it.copy(subscribeBattleLog = value) }, reconnect = true)
-                                },
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            SwitchRow(
                                 title = "锁屏隐藏通知内容",
                                 checked = settings.lockScreenHideContent,
                                 onCheckedChange = { value ->
@@ -716,6 +695,66 @@ fun SettingsScreen(
                     }
                 }
             }
+    }
+
+    if (showExportSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showExportSheet = false },
+            sheetState = exportSheetState,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_export_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    ExportOptionButton(
+                        icon = Icons.Default.DataObject,
+                        label = stringResource(R.string.settings_export_json),
+                        onClick = {
+                            showExportSheet = false
+                            jsonLauncher.launch("freechat.json")
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    ExportOptionButton(
+                        icon = Icons.Default.Description,
+                        label = stringResource(R.string.settings_export_txt),
+                        onClick = {
+                            showExportSheet = false
+                            txtLauncher.launch("freechat.txt")
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { includeRaw = !includeRaw }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = includeRaw,
+                        onCheckedChange = null,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.settings_export_include_raw),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
     }
 
     if (showClearDialog) {
@@ -772,7 +811,10 @@ private fun AppearanceSettings(
                 text = stringResource(R.string.settings_language),
                 style = MaterialTheme.typography.titleMedium,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 AppLanguage.entries.forEach { language ->
                     FilterChip(
                         selected = settings.appLanguage == language,
@@ -797,46 +839,38 @@ private fun themeLabel(mode: ThemeMode): String = stringResource(
 @Composable
 private fun languageLabel(language: AppLanguage): String = stringResource(
     when (language) {
+        AppLanguage.SYSTEM -> R.string.settings_language_system
         AppLanguage.ENGLISH -> R.string.settings_language_en
         AppLanguage.CHINESE -> R.string.settings_language_zh
     },
 )
 
+
 @Composable
-private fun ServerRow(
-    profile: ServerProfile,
-    selected: Boolean,
-    onSelect: () -> Unit,
-    onDelete: () -> Unit,
+private fun ExportOptionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.height(104.dp),
+        shape = MaterialTheme.shapes.large,
+        contentPadding = PaddingValues(vertical = 12.dp),
     ) {
-        RadioButton(selected = selected, onClick = onSelect)
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                profile.characterName
-                    ?: profile.serverName
-                    ?: stringResource(R.string.settings_character_unnamed),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                listOfNotNull(
-                    profile.worldName,
-                    "${profile.host}:${profile.port}",
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onDelete) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Icon(
-                Icons.Default.Delete,
-                contentDescription = stringResource(R.string.common_delete),
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(26.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
             )
         }
     }

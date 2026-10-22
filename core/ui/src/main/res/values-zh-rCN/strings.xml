@@ -29,8 +29,9 @@
     <string name="common_retry">重试</string>
     <string name="common_settings">设置</string>
     <string name="common_connect_server">连接服务器</string>
-    <string name="common_connected">已连接</string>
-    <string name="common_not_connected">未连接</string>
+    <string name="common_connected">在线</string>
+    <string name="common_not_connected">离线</string>
+    <string name="common_connecting">连接中</string>
     <string name="common_search">搜索</string>
     <string name="common_more">更多选项</string>
     <string name="common_unknown_error">未知错误</string>
@@ -46,6 +47,8 @@
     <string name="chat_section_private">私聊</string>
     <string name="chat_waiting_title">已连接，等待消息</string>
     <string name="chat_waiting_message">收到新消息后会显示在这里。</string>
+    <string name="chat_connecting_title">正在连接服务器</string>
+    <string name="chat_connecting_message">正在等待会话上线。</string>
     <string name="chat_empty_title">还没有连接服务器</string>
     <string name="chat_empty_message">连接 Dalamud 服务端后，系统通知、公共频道和私聊会出现在这里。</string>
     <string name="chat_search_empty_title">没有找到消息</string>
@@ -83,8 +86,6 @@
     <string name="friends_sort_name">按名字</string>
     <string name="friends_sort_world">按服务器</string>
     <string name="friends_refresh">刷新好友</string>
-    <string name="friends_status_online">在线</string>
-    <string name="friends_status_offline">离线</string>
     <string name="friends_unknown_world">未知服务器</string>
     <string name="friends_empty_title">暂无好友</string>
     <string name="friends_empty_message">好友列表为空。</string>
@@ -92,6 +93,8 @@
     <string name="friends_no_match_message">试试其他关键词或筛选条件。</string>
     <string name="friends_not_connected_title">还没有连接服务器</string>
     <string name="friends_not_connected_message">连接 Dalamud 服务端后可以查看好友。</string>
+    <string name="friends_connecting_title">正在连接服务器</string>
+    <string name="friends_connecting_message">会话上线后会加载好友列表。</string>
     <string name="friends_disconnected_title">连接已断开</string>
     <string name="friends_disconnected_message">重新连接服务器后可以查看好友。</string>
     <string name="friends_error_title">无法加载好友</string>
@@ -106,14 +109,20 @@
     <string name="settings_theme_dark">深色</string>
     <string name="settings_language">语言</string>
     <string name="settings_language_summary">应用语言与日期格式</string>
+    <string name="settings_language_system">跟随系统</string>
     <string name="settings_language_en">English</string>
     <string name="settings_language_zh">简体中文</string>
-    <string name="settings_section_connection">连接</string>
+    <string name="settings_section_server">服务器</string>
     <string name="settings_section_data">数据</string>
     <string name="settings_section_notifications">通知</string>
     <string name="settings_section_developer">开发者</string>
     <string name="settings_developer_options">开发者选项</string>
     <string name="settings_developer_summary">订阅来源、消息内容与调试开关</string>
+    <string name="settings_export">导出</string>
+    <string name="settings_export_title">导出聊天记录</string>
+    <string name="settings_export_json">JSON</string>
+    <string name="settings_export_txt">TXT</string>
+    <string name="settings_export_include_raw">导出包含原始数据</string>
     <string name="settings_server_unnamed">服务器</string>
     <string name="settings_character_unnamed">未命名角色</string>
 

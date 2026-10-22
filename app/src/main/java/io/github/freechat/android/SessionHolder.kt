@@ -8,6 +8,7 @@ import io.github.freechat.android.core.data.chat.ChatConnector
 import io.github.freechat.android.core.data.chat.ChatController
 import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.data.store.SettingsStore
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.ServerProfile
 import io.github.freechat.android.service.FreeChatService
 import javax.inject.Inject
@@ -35,8 +36,9 @@ class SessionHolder @Inject constructor(
     var current: ActiveChat? = null
         private set
 
-    private val _isConnected = MutableStateFlow(false)
-    override val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+    private val _connectionStatus = MutableStateFlow(ConnectionStatus.OFFLINE)
+    override val connectionStatus: StateFlow<ConnectionStatus> =
+        _connectionStatus.asStateFlow()
 
     override val active: ActiveChat?
         get() = current
@@ -58,44 +60,53 @@ class SessionHolder @Inject constructor(
     ): ActiveChat = withContext(Dispatchers.IO) {
         current?.close()
         current = null
-        _isConnected.value = false
-        val settings = settingsStore.settings.first()
-        val active = chatController.connect(
-            profile = profile,
-            includeBattle = settings.subscribeBattleLog,
-            sources = settings.developerSources,
-            contentSource = settings.developerMessageContent,
-            pairingCodeProvider = { pairingCode },
-            onPairingRequired = { onPairingRequired() },
-        )
-        val identityMatches = active.sessionInfo.serverId == profile.serverId &&
-            (profile.characterId == 0L ||
-                active.sessionInfo.characterId == profile.characterId)
-        if (!identityMatches) {
-            active.close()
-            throw IllegalStateException(
-                "Server or character identity does not match the selected session",
+        _connectionStatus.value = ConnectionStatus.CONNECTING
+
+        var connected: ActiveChat? = null
+        try {
+            val settings = settingsStore.settings.first()
+            val active = chatController.connect(
+                profile = profile,
+                includeBattle = settings.subscribeBattleLog,
+                sources = settings.developerSources,
+                contentSource = settings.developerMessageContent,
+                pairingCodeProvider = { pairingCode },
+                onPairingRequired = { onPairingRequired() },
             )
-        }
-        serverRepository.save(
-            profile.copy(
-                serverId = active.sessionInfo.serverId,
-                serverName = active.sessionInfo.serverName,
-                characterId = active.sessionInfo.characterId,
-                characterName = active.sessionInfo.characterName,
-                worldName = active.sessionInfo.worldName,
-            ),
-            makeActive = true,
-        )
-        current = active
-        _isConnected.value = true
-        if (startService) {
-            ContextCompat.startForegroundService(
-                context,
-                Intent(context, FreeChatService::class.java),
+            connected = active
+            val identityMatches = active.sessionInfo.serverId == profile.serverId &&
+                (profile.characterId == 0L ||
+                    active.sessionInfo.characterId == profile.characterId)
+            if (!identityMatches) {
+                throw IllegalStateException(
+                    "Server or character identity does not match the selected session",
+                )
+            }
+            serverRepository.save(
+                profile.copy(
+                    serverId = active.sessionInfo.serverId,
+                    serverName = active.sessionInfo.serverName,
+                    characterId = active.sessionInfo.characterId,
+                    characterName = active.sessionInfo.characterName,
+                    worldName = active.sessionInfo.worldName,
+                ),
+                makeActive = true,
             )
+            current = active
+            _connectionStatus.value = ConnectionStatus.ONLINE
+            if (startService) {
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, FreeChatService::class.java),
+                )
+            }
+            active
+        } catch (error: Throwable) {
+            if (current === connected) current = null
+            connected?.close()
+            _connectionStatus.value = ConnectionStatus.OFFLINE
+            throw error
         }
-        active
     }
 
     override suspend fun connect(profile: ServerProfile, pairingCode: String?): ActiveChat =
@@ -104,7 +115,7 @@ class SessionHolder @Inject constructor(
     fun invalidate(active: ActiveChat?) {
         if (current === active) {
             current = null
-            _isConnected.value = false
+            _connectionStatus.value = ConnectionStatus.OFFLINE
         }
     }
 
@@ -112,7 +123,7 @@ class SessionHolder @Inject constructor(
         withContext(Dispatchers.IO) {
             current?.close()
             current = null
-            _isConnected.value = false
+            _connectionStatus.value = ConnectionStatus.OFFLINE
             context.stopService(Intent(context, FreeChatService::class.java))
         }
     }
@@ -120,7 +131,7 @@ class SessionHolder @Inject constructor(
     override suspend fun requestReconnect() = withContext(Dispatchers.IO) {
         val active = current
         current = null
-        _isConnected.value = false
+        _connectionStatus.value = ConnectionStatus.CONNECTING
         active?.close()
         ContextCompat.startForegroundService(
             context,

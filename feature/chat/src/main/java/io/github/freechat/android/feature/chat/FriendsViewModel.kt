@@ -8,6 +8,7 @@ import io.github.freechat.android.core.data.conversation.ConversationIds
 import io.github.freechat.android.core.data.repository.ChatRepository
 import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.model.ChatConversation
+import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.ConversationType
 import io.github.freechat.android.core.model.FriendInfo
 import javax.inject.Inject
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 
 enum class FriendsError {
     NOT_CONNECTED,
+    CONNECTING,
     DISCONNECTED,
     LOAD_FAILED,
 }
@@ -40,18 +42,33 @@ class FriendsViewModel @Inject constructor(
     private val _state = MutableStateFlow(FriendsUiState())
     val state: StateFlow<FriendsUiState> = _state.asStateFlow()
 
+    val connectionStatus: StateFlow<ConnectionStatus> = connector.connectionStatus
+
     init {
         viewModelScope.launch {
-            connector.isConnected.collect { connected ->
-                if (connected) {
-                    load(force = true)
-                } else if (_state.value.loaded) {
-                    _state.update {
+            connector.connectionStatus.collect { status ->
+                when (status) {
+                    ConnectionStatus.ONLINE -> load(force = true)
+
+                    ConnectionStatus.CONNECTING -> _state.update {
                         it.copy(
                             isLoading = false,
                             friends = emptyList(),
-                            error = FriendsError.DISCONNECTED,
-                            loaded = false,
+                            error = FriendsError.CONNECTING,
+                            loaded = true,
+                        )
+                    }
+
+                    ConnectionStatus.OFFLINE -> _state.update {
+                        it.copy(
+                            isLoading = false,
+                            friends = emptyList(),
+                            error = if (connector.active == null) {
+                                FriendsError.NOT_CONNECTED
+                            } else {
+                                FriendsError.DISCONNECTED
+                            },
+                            loaded = true,
                         )
                     }
                 }
