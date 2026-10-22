@@ -49,7 +49,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FreeChatDatabase =
-        Room.databaseBuilder(context, FreeChatDatabase::class.java, FreeChatDatabase.NAME).build()
+        Room.databaseBuilder(context, FreeChatDatabase::class.java, FreeChatDatabase.NAME)
+            .addMigrations(FreeChatDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     @Singleton

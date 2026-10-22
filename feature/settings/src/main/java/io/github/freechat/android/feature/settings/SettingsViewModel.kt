@@ -49,6 +49,7 @@ class SettingsViewModel @Inject constructor(
     val message: StateFlow<String?> = _message.asStateFlow()
 
     val activeChat get() = connector.active
+    val isConnected = connector.isConnected
 
     fun setActive(serverId: String) {
         viewModelScope.launch { serverRepository.setActive(serverId) }
@@ -61,8 +62,17 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun updateSettings(transform: (AppSettings) -> AppSettings) {
-        viewModelScope.launch { settingsStore.update(transform) }
+    fun updateSettings(
+        transform: (AppSettings) -> AppSettings,
+        reconnect: Boolean = false,
+    ) {
+        viewModelScope.launch {
+            settingsStore.update(transform)
+            if (reconnect) {
+                connector.requestReconnect()
+                _message.value = "设置已应用，正在重连"
+            }
+        }
     }
 
     fun export(

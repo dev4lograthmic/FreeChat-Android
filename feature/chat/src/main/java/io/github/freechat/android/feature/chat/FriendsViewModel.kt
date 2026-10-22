@@ -34,6 +34,25 @@ class FriendsViewModel @Inject constructor(
     private val _state = MutableStateFlow(FriendsUiState())
     val state: StateFlow<FriendsUiState> = _state.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            connector.isConnected.collect { connected ->
+                if (connected) {
+                    load(force = true)
+                } else if (_state.value.loaded) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            friends = emptyList(),
+                            error = "连接已断开",
+                            loaded = false,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     fun load(force: Boolean = false) {
         if (_state.value.isLoading) return
         if (_state.value.loaded && !force) return
@@ -85,6 +104,7 @@ class FriendsViewModel @Inject constructor(
                 unreadCount = 0,
             ),
         )
+        chatRepository.unhideConversation(conversationId)
         return conversationId
     }
 }

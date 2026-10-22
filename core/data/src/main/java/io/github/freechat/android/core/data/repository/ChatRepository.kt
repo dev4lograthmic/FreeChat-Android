@@ -3,6 +3,8 @@ package io.github.freechat.android.core.data.repository
 import androidx.room.withTransaction
 import io.github.freechat.android.core.data.db.FreeChatDatabase
 import io.github.freechat.android.core.data.db.entity.MessageFtsEntity
+import io.github.freechat.android.core.data.conversation.ConversationIds
+import io.github.freechat.android.core.data.conversation.ConversationLabels
 import io.github.freechat.android.core.data.export.ExportFormat
 import io.github.freechat.android.core.data.export.MessageExporter
 import io.github.freechat.android.core.data.mapper.toDomain
@@ -46,6 +48,56 @@ class ChatRepository(
         }
     }
 
+    suspend fun ensureDefaultConversations(serverId: String, supportedChannels: List<String>) {
+        val supported = supportedChannels
+            .map { it.removePrefix("CHAT_CHANNEL_") }
+            .toSet()
+        val publicChannels = ConversationLabels.publicChannels.keys
+            .let { channels -> if (supported.isEmpty()) channels else channels.filter { it in supported } }
+
+        publicChannels.forEach { channel ->
+            ensureConversation(
+                ChatConversation(
+                    id = ConversationIds.publicChannel(serverId, channel),
+                    serverId = serverId,
+                    type = ConversationType.PUBLIC_CHANNEL,
+                    channel = channel,
+                    peerName = null,
+                    peerWorld = null,
+                    displayName = ConversationLabels.publicLabel(channel),
+                    lastMessageText = "",
+                    lastMessageAt = 0,
+                    unreadCount = 0,
+                ),
+            )
+        }
+
+        ConversationLabels.systemChannels.keys.forEach { key ->
+            ensureConversation(
+                ChatConversation(
+                    id = ConversationIds.system(serverId, key),
+                    serverId = serverId,
+                    type = ConversationType.SYSTEM,
+                    channel = key,
+                    peerName = null,
+                    peerWorld = null,
+                    displayName = ConversationLabels.systemLabel(key),
+                    lastMessageText = "",
+                    lastMessageAt = 0,
+                    unreadCount = 0,
+                ),
+            )
+        }
+    }
+
+    suspend fun hideConversation(conversationId: String) {
+        conversationDao.hide(conversationId)
+    }
+
+    suspend fun unhideConversation(conversationId: String) {
+        conversationDao.unhide(conversationId)
+    }
+
     suspend fun recordIncoming(message: ChatMessage, conversation: ChatConversation): Boolean =
         database.withTransaction {
             val inserted = messageDao.insert(message.toEntity())
@@ -76,6 +128,8 @@ class ChatRepository(
                     preview = preview,
                     at = message.timestamp,
                     increment = !message.outgoing,
+                    unhide = !message.outgoing,
+                    displayName = conversation.displayName,
                 )
             }
             true

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.freechat.android.core.data.export.ExportFormat
+import io.github.freechat.android.core.model.ChatSourceOption
+import io.github.freechat.android.core.model.MessageContentSource
 import io.github.freechat.android.core.model.ServerProfile
 import io.github.freechat.android.core.ui.components.FreeChatAvatar
 import io.github.freechat.android.core.ui.components.FreeChatCard
@@ -70,13 +73,14 @@ fun MeRoute(
 ) {
     val activeProfile by viewModel.activeProfile.collectAsStateWithLifecycle()
     val activeChat = viewModel.activeChat
+    val isConnected by viewModel.isConnected.collectAsStateWithLifecycle()
     val characterName = activeChat?.sessionInfo?.characterName
         ?.takeIf { it.isNotBlank() }
         ?: activeProfile?.characterName
     val worldName = activeChat?.sessionInfo?.worldName
         ?.takeIf { it.isNotBlank() }
         ?: activeProfile?.worldName
-    val connected = activeChat != null
+    val connected = isConnected
 
     ScreenBackground {
         LazyColumn(
@@ -300,7 +304,7 @@ fun SettingsScreen(
                                 title = "私聊通知",
                                 checked = settings.notifyPrivate,
                                 onCheckedChange = { value ->
-                                    viewModel.updateSettings { it.copy(notifyPrivate = value) }
+                                    viewModel.updateSettings({ it.copy(notifyPrivate = value) })
                                 },
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -308,7 +312,7 @@ fun SettingsScreen(
                                 title = "小队通知",
                                 checked = settings.notifyParty,
                                 onCheckedChange = { value ->
-                                    viewModel.updateSettings { it.copy(notifyParty = value) }
+                                    viewModel.updateSettings({ it.copy(notifyParty = value) })
                                 },
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -316,7 +320,7 @@ fun SettingsScreen(
                                 title = "订阅战斗日志",
                                 checked = settings.subscribeBattleLog,
                                 onCheckedChange = { value ->
-                                    viewModel.updateSettings { it.copy(subscribeBattleLog = value) }
+                                    viewModel.updateSettings({ it.copy(subscribeBattleLog = value) }, reconnect = true)
                                 },
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -324,7 +328,7 @@ fun SettingsScreen(
                                 title = "锁屏隐藏通知内容",
                                 checked = settings.lockScreenHideContent,
                                 onCheckedChange = { value ->
-                                    viewModel.updateSettings { it.copy(lockScreenHideContent = value) }
+                                    viewModel.updateSettings({ it.copy(lockScreenHideContent = value) })
                                 },
                             )
                         }
@@ -333,13 +337,108 @@ fun SettingsScreen(
 
                 item { FreeChatSectionHeader("开发者") }
                 item {
+                    Text(
+                        "订阅来源（调试用，默认 POST_HANDLE）",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+                item {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ChatSourceOption.entries.forEach { source ->
+                            FilterChip(
+                                selected = source in settings.developerSources,
+                                onClick = {
+                                    viewModel.updateSettings(
+                                        transform = {
+                                            it.copy(
+                                                developerSources = toggleSource(
+                                                    it.developerSources,
+                                                    source,
+                                                ),
+                                            )
+                                        },
+                                        reconnect = true,
+                                    )
+                                },
+                                label = { Text(source.label()) },
+                            )
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        "同时选择 POST_HANDLE 与 STRUCTURED 可能收到重复事件。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+                item {
+                    Text(
+                        "消息内容字段（调试用）",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+                item {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            MessageContentSource.entries.take(2).forEach { source ->
+                                FilterChip(
+                                    selected = settings.developerMessageContent == source,
+                                    onClick = {
+                                        viewModel.updateSettings(
+                                            transform = {
+                                                it.copy(developerMessageContent = source)
+                                            },
+                                            reconnect = true,
+                                        )
+                                    },
+                                    label = { Text(source.label()) },
+                                )
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            MessageContentSource.entries.drop(2).forEach { source ->
+                                FilterChip(
+                                    selected = settings.developerMessageContent == source,
+                                    onClick = {
+                                        viewModel.updateSettings(
+                                            transform = {
+                                                it.copy(developerMessageContent = source)
+                                            },
+                                            reconnect = true,
+                                        )
+                                    },
+                                    label = { Text(source.label()) },
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        "raw 字段以 Base64 显示，仅用于调试。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
+                }
+                item {
                     FreeChatCard {
                         Column {
                             SwitchRow(
                                 title = "允许 raw 命令",
                                 checked = settings.developerRawCommands,
                                 onCheckedChange = { value ->
-                                    viewModel.updateSettings { it.copy(developerRawCommands = value) }
+                                    viewModel.updateSettings({ it.copy(developerRawCommands = value) })
                                 },
                             )
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -347,7 +446,7 @@ fun SettingsScreen(
                                 title = "超长消息拆分提示",
                                 checked = settings.developerSplitToast,
                                 onCheckedChange = { value ->
-                                    viewModel.updateSettings { it.copy(developerSplitToast = value) }
+                                    viewModel.updateSettings({ it.copy(developerSplitToast = value) })
                                 },
                             )
                         }
@@ -405,6 +504,27 @@ private fun ServerRow(
             Icon(Icons.Default.Delete, contentDescription = "删除服务器")
         }
     }
+}
+
+private fun toggleSource(
+    current: Set<ChatSourceOption>,
+    source: ChatSourceOption,
+): Set<ChatSourceOption> {
+    val next = if (source in current) current - source else current + source
+    return next.ifEmpty { setOf(ChatSourceOption.POST_HANDLE) }
+}
+
+private fun ChatSourceOption.label(): String = when (this) {
+    ChatSourceOption.PRE_HANDLE -> "PRE_HANDLE"
+    ChatSourceOption.POST_HANDLE -> "POST_HANDLE"
+    ChatSourceOption.STRUCTURED -> "STRUCTURED"
+}
+
+private fun MessageContentSource.label(): String = when (this) {
+    MessageContentSource.TEXT -> "TEXT"
+    MessageContentSource.ORIGINAL_TEXT -> "ORIGINAL_TEXT"
+    MessageContentSource.RAW_MESSAGE -> "RAW_MESSAGE"
+    MessageContentSource.ORIGINAL_RAW_MESSAGE -> "ORIGINAL_RAW"
 }
 
 @Composable

@@ -20,6 +20,7 @@ import build.buf.gen.freechat.v1.SendStatus
 import build.buf.gen.freechat.v1.Subscribe
 import build.buf.gen.freechat.v1.Subscribed
 import io.github.freechat.android.core.model.ChatConversation
+import io.github.freechat.android.core.model.ChatSourceOption
 import io.github.freechat.android.core.model.FriendInfo
 import io.github.freechat.android.core.model.FriendListSnapshot
 import java.util.UUID
@@ -95,7 +96,10 @@ class ChatSession(
     suspend fun subscribe(
         fromSequence: Long = 0,
         includeBattle: Boolean = false,
+        sources: Set<ChatSourceOption> = setOf(ChatSourceOption.POST_HANDLE),
+        includeOriginal: Boolean = false,
     ): Subscribed {
+        val effectiveSources = sources.ifEmpty { setOf(ChatSourceOption.POST_HANDLE) }
         val deferred = CompletableDeferred<Subscribed>()
         subscribeDeferred = deferred
         val envelope = Envelope.newBuilder()
@@ -108,11 +112,11 @@ class ChatSession(
                             .setIncludeOwn(true)
                             .build(),
                     )
-                    .addSources(ChatSource.CHAT_SOURCE_POST_HANDLE)
                     .apply {
-                        if (includeBattle) addSources(ChatSource.CHAT_SOURCE_STRUCTURED)
+                        effectiveSources.forEach { addSources(it.toProto()) }
                     }
                     .setContentMode(ContentMode.CONTENT_MODE_CURRENT)
+                    .setIncludeOriginal(includeOriginal)
                     .setFromSequence(fromSequence)
                     .build(),
             )
@@ -249,6 +253,12 @@ class ChatSession(
                 eventChannel.close()
             }
         }
+    }
+
+    private fun ChatSourceOption.toProto(): ChatSource = when (this) {
+        ChatSourceOption.PRE_HANDLE -> ChatSource.CHAT_SOURCE_PRE_HANDLE
+        ChatSourceOption.POST_HANDLE -> ChatSource.CHAT_SOURCE_POST_HANDLE
+        ChatSourceOption.STRUCTURED -> ChatSource.CHAT_SOURCE_STRUCTURED
     }
 
     private fun SendStatus.isTerminal(): Boolean = when (this) {

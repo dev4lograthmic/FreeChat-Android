@@ -20,11 +20,9 @@ class AndroidDeviceKeyStore(
     context: Context,
     private val alias: String = DEFAULT_ALIAS,
 ) : DeviceKey {
-    private val keyPair: KeyPair
-
-    init {
+    private val keyPair: KeyPair by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
-        keyPair = if (keyStore.containsAlias(alias)) {
+        if (keyStore.containsAlias(alias)) {
             val privateKey = keyStore.getKey(alias, null) as PrivateKey
             val publicKey = keyStore.getCertificate(alias).publicKey
             KeyPair(publicKey, privateKey)

@@ -17,7 +17,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.service.FreeChatService
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import io.github.freechat.android.core.ui.theme.FreeChatTheme
 import io.github.freechat.android.notify.NotificationDispatcher
@@ -32,7 +34,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         readIntent(intent)
-        requestNotificationPermissionIfNeeded()
         enableEdgeToEdge()
         setContent {
             FreeChatTheme {
@@ -43,8 +44,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        window.decorView.post { requestNotificationPermissionIfNeeded() }
+
         lifecycleScope.launch {
-            if (serverRepository.activeProfile.first() != null) {
+            val profile = withContext(Dispatchers.IO) {
+                serverRepository.activeProfile.first()
+            }
+            if (profile != null) {
                 ContextCompat.startForegroundService(
                     this@MainActivity,
                     Intent(this@MainActivity, FreeChatService::class.java),

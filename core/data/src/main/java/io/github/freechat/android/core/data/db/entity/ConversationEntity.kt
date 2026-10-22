@@ -21,4 +21,5 @@ data class ConversationEntity(
     val lastMessageText: String,
     val lastMessageAt: Long,
     val unreadCount: Int,
+    val hidden: Boolean = false,
 )

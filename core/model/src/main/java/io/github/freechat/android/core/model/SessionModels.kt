@@ -1,5 +1,22 @@
 package io.github.freechat.android.core.model
 
+enum class ChatSourceOption {
+    PRE_HANDLE,
+    POST_HANDLE,
+    STRUCTURED,
+}
+
+enum class MessageContentSource {
+    TEXT,
+    ORIGINAL_TEXT,
+    RAW_MESSAGE,
+    ORIGINAL_RAW_MESSAGE,
+    ;
+
+    val needsOriginal: Boolean
+        get() = this == ORIGINAL_TEXT || this == ORIGINAL_RAW_MESSAGE
+}
+
 data class SessionInfo(
     val serverId: String,
     val serverName: String,

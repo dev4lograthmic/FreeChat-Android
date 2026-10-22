@@ -7,6 +7,8 @@ import build.buf.gen.freechat.v1.Welcome
 import io.github.freechat.android.core.data.repository.ChatRepository
 import io.github.freechat.android.core.model.ChatConversation
 import io.github.freechat.android.core.model.ChatMessage
+import io.github.freechat.android.core.model.ChatSourceOption
+import io.github.freechat.android.core.model.MessageContentSource
 import io.github.freechat.android.core.model.FriendListSnapshot
 import io.github.freechat.android.core.model.SendOutcome
 import io.github.freechat.android.core.model.SendOutcomeStatus
@@ -33,6 +35,8 @@ class ChatController(
         profile: ServerProfile,
         fromSequence: Long = 0,
         includeBattle: Boolean = false,
+        sources: Set<ChatSourceOption> = setOf(ChatSourceOption.POST_HANDLE),
+        contentSource: MessageContentSource = MessageContentSource.TEXT,
         pairingCodeProvider: suspend (PairingRequired) -> String? = { null },
         onPairingRequired: suspend (PairingRequired) -> Unit = {},
     ): ActiveChat {
@@ -47,6 +51,7 @@ class ChatController(
             repository = repository,
             serverId = profile.serverId,
             sessionId = connection.welcome.sessionId,
+            contentSource = contentSource,
         )
         val eventFlow = MutableSharedFlow<ChatMessage>(extraBufferCapacity = 128)
         val processorJob: Job = scope.launch {
@@ -56,7 +61,17 @@ class ChatController(
         }
 
         try {
-            session.subscribe(fromSequence = fromSequence, includeBattle = includeBattle)
+            session.subscribe(
+                fromSequence = fromSequence,
+                includeBattle = includeBattle,
+                sources = sources,
+                includeOriginal = contentSource.needsOriginal,
+            )
+            repository.ensureDefaultConversations(
+                serverId = profile.serverId,
+                supportedChannels = connection.welcome.server.capabilities.supportedChannelsList
+                    .map { it.name },
+            )
         } catch (error: Throwable) {
             processorJob.cancel()
             scope.cancel()

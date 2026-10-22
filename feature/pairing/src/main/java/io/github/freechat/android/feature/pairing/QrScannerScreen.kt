@@ -2,6 +2,7 @@ package io.github.freechat.android.feature.pairing
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Size
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,6 +10,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -129,17 +132,20 @@ private fun CameraPreview(onResult: (String) -> Unit) {
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
-                val imageAnalysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                analysis = imageAnalysis
-                val reader = MultiFormatReader().apply {
-                    setHints(
-                        mapOf(
-                            DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
+                val resolutionSelector = ResolutionSelector.Builder()
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            Size(1280, 720),
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
                         ),
                     )
-                }
+                    .build()
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setResolutionSelector(resolutionSelector)
+                    .build()
+                analysis = imageAnalysis
+                val reader = MultiFormatReader()
                 imageAnalysis.setAnalyzer(analysisExecutor) { image ->
                     try {
                         if (!scanned.get()) {
@@ -176,6 +182,13 @@ private fun CameraPreview(onResult: (String) -> Unit) {
     )
 }
 
+private val QR_HINTS = mapOf(
+    DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
+    DecodeHintType.TRY_HARDER to true,
+    DecodeHintType.ALSO_INVERTED to true,
+    DecodeHintType.CHARACTER_SET to "UTF-8",
+)
+
 private fun decodeQr(image: ImageProxy, reader: MultiFormatReader): String? {
     val plane = image.planes.firstOrNull() ?: return null
     val buffer = plane.buffer
@@ -192,6 +205,7 @@ private fun decodeQr(image: ImageProxy, reader: MultiFormatReader): String? {
         System.arraycopy(bytes, source, luminance, row * width, width)
     }
     return runCatching {
+        reader.setHints(QR_HINTS)
         val source = PlanarYUVLuminanceSource(
             luminance,
             width,

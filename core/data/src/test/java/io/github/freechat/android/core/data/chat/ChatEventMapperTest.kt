@@ -6,6 +6,7 @@ import build.buf.gen.freechat.v1.ChatEvent
 import com.google.common.truth.Truth.assertThat
 import com.google.protobuf.Timestamp
 import io.github.freechat.android.core.model.ConversationType
+import io.github.freechat.android.core.model.MessageContentSource
 import org.junit.Test
 
 class ChatEventMapperTest {
@@ -46,6 +47,38 @@ class ChatEventMapperTest {
 
         assertThat(mapped.conversation.type).isEqualTo(ConversationType.SYSTEM)
         assertThat(mapped.conversation.id).isEqualTo("srv:system:BATTLE")
+    }
+
+    @Test
+    fun `can select original text for debugging`() {
+        val event = event(ChatChannel.CHAT_CHANNEL_SAY, "current")
+            .toBuilder()
+            .setOriginalText("original")
+            .build()
+        val mapped = ChatEventMapper.map(
+            event = event,
+            serverId = "srv",
+            sessionId = "sess",
+            contentSource = MessageContentSource.ORIGINAL_TEXT,
+        )
+
+        assertThat(mapped.message.text).isEqualTo("original")
+    }
+
+    @Test
+    fun `can select raw message for debugging`() {
+        val event = event(ChatChannel.CHAT_CHANNEL_SAY, "current")
+            .toBuilder()
+            .setRawMessage(com.google.protobuf.ByteString.copyFrom(byteArrayOf(1, 2, 3)))
+            .build()
+        val mapped = ChatEventMapper.map(
+            event = event,
+            serverId = "srv",
+            sessionId = "sess",
+            contentSource = MessageContentSource.RAW_MESSAGE,
+        )
+
+        assertThat(mapped.message.text).startsWith("[raw] ")
     }
 
     private fun event(channel: ChatChannel, text: String): ChatEvent =

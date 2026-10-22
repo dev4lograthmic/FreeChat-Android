@@ -3,9 +3,12 @@ package io.github.freechat.android.core.data.chat
 import build.buf.gen.freechat.v1.ChatChannel
 import build.buf.gen.freechat.v1.ChatEvent
 import io.github.freechat.android.core.data.conversation.ConversationIds
+import io.github.freechat.android.core.data.conversation.ConversationLabels
 import io.github.freechat.android.core.model.ChatConversation
 import io.github.freechat.android.core.model.ChatMessage
 import io.github.freechat.android.core.model.ConversationType
+import io.github.freechat.android.core.model.MessageContentSource
+import java.util.Base64
 
 data class MappedChatEvent(
     val message: ChatMessage,
@@ -18,13 +21,26 @@ object ChatEventMapper {
         serverId: String,
         sessionId: String,
         now: Long = System.currentTimeMillis(),
+        contentSource: MessageContentSource = MessageContentSource.TEXT,
     ): MappedChatEvent {
         val channel = event.channel.toChannelName()
         val timestamp = event.timestamp.toMillis(now)
         val sender = event.sender
         val senderName = sender.name.ifBlank { "System" }
         val senderWorld = sender.worldName.takeIf { it.isNotBlank() }
-        val text = event.text
+        val text = when (contentSource) {
+            MessageContentSource.TEXT -> event.text
+            MessageContentSource.ORIGINAL_TEXT ->
+                if (event.hasOriginalText()) event.originalText else event.text
+
+            MessageContentSource.RAW_MESSAGE ->
+                rawText(event.rawMessage) ?: event.text
+
+            MessageContentSource.ORIGINAL_RAW_MESSAGE ->
+                rawText(
+                    if (event.hasOriginalRawMessage()) event.originalRawMessage else event.rawMessage,
+                ) ?: event.text
+        }
         val type = event.channel.toConversationType()
 
         val peer = if (event.hasTellPeer() && event.tellPeer.name.isNotBlank()) {
@@ -35,21 +51,27 @@ object ChatEventMapper {
         val peerName = peer.name
         val peerWorld = peer.worldName.takeIf { it.isNotBlank() }
 
+        val systemKey = event.channel.toSystemKey()
+        val conversationChannel = if (type == ConversationType.SYSTEM) {
+            systemKey ?: channel
+        } else {
+            channel
+        }
         val conversationId = when (type) {
             ConversationType.PRIVATE ->
                 ConversationIds.privateChat(serverId, peerName, peerWorld)
             ConversationType.SYSTEM ->
-                ConversationIds.system(serverId, channel)
+                ConversationIds.system(serverId, conversationChannel)
             ConversationType.PUBLIC_CHANNEL ->
                 ConversationIds.publicChannel(serverId, channel)
         }
 
         val displayName = when (type) {
             ConversationType.PRIVATE -> if (peerWorld != null) "$peerName@$peerWorld" else peerName
-            ConversationType.SYSTEM -> channel
+            ConversationType.SYSTEM -> ConversationLabels.systemLabel(conversationChannel)
             ConversationType.PUBLIC_CHANNEL -> event.channelName
                 .takeIf { it.isNotBlank() }
-                ?: channel
+                ?: ConversationLabels.publicLabel(channel)
         }
 
         val messageId = event.messageId.ifBlank { "$serverId:$sessionId:${event.sequence}" }
@@ -74,7 +96,7 @@ object ChatEventMapper {
             id = conversationId,
             serverId = serverId,
             type = type,
-            channel = channel,
+            channel = conversationChannel,
             peerName = peerName.takeIf { it.isNotBlank() },
             peerWorld = peerWorld,
             displayName = displayName,
@@ -86,6 +108,9 @@ object ChatEventMapper {
     }
 
     private fun ChatChannel.toChannelName(): String = name.removePrefix("CHAT_CHANNEL_")
+
+    private fun ChatChannel.toSystemKey(): String? =
+        ConversationLabels.systemKey(toChannelName())
 
     private fun ChatChannel.toConversationType(): ConversationType = when (this) {
         ChatChannel.CHAT_CHANNEL_TELL -> ConversationType.PRIVATE
@@ -99,6 +124,11 @@ object ChatEventMapper {
         -> ConversationType.SYSTEM
 
         else -> ConversationType.PUBLIC_CHANNEL
+    }
+
+    private fun rawText(value: com.google.protobuf.ByteString): String? {
+        if (value.isEmpty) return null
+        return "[raw] " + Base64.getEncoder().encodeToString(value.toByteArray())
     }
 
     private fun com.google.protobuf.Timestamp.toMillis(now: Long): Long {
