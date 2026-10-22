@@ -11,18 +11,23 @@ import io.github.freechat.android.core.data.store.SettingsStore
 import io.github.freechat.android.core.model.ChatConversation
 import io.github.freechat.android.core.model.ChatMessage
 import io.github.freechat.android.core.model.ConversationType
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ChatHomeViewModel @Inject constructor(
     private val repository: ChatRepository,
@@ -30,18 +35,31 @@ class ChatHomeViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
     private val settingsStore: SettingsStore,
 ) : ViewModel() {
+    private val activeProfileId = serverRepository.activeProfile
+        .map { it?.profileId }
+        .distinctUntilChanged()
+
     val conversations: StateFlow<List<ChatConversation>> =
-        repository.observeAllConversations().stateIn(
+        activeProfileId.flatMapLatest { profileId ->
+            if (profileId == null) {
+                flowOf(emptyList())
+            } else {
+                repository.observeAllConversations(profileId)
+            }
+        }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList(),
         )
 
-    val totalUnread: StateFlow<Int> = repository.observeTotalUnread().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = 0,
-    )
+    val totalUnread: StateFlow<Int> =
+        activeProfileId.flatMapLatest { profileId ->
+            if (profileId == null) flowOf(0) else repository.observeTotalUnread(profileId)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = 0,
+        )
 
     val collapsedSections: StateFlow<Set<ConversationType>> = settingsStore.settings
         .map { it.collapsedSections }
@@ -66,7 +84,8 @@ class ChatHomeViewModel @Inject constructor(
         }
         searchJob = viewModelScope.launch {
             delay(200)
-            _searchResults.value = repository.search(query)
+            val profileId = currentProfileId() ?: return@launch
+            _searchResults.value = repository.search(query, profileId)
         }
     }
 
@@ -99,11 +118,15 @@ class ChatHomeViewModel @Inject constructor(
         val name = peerName.trim()
         val world = peerWorld.trim()
         if (name.isBlank()) return null
+        val profile = serverRepository.activeProfile.first()
         val serverId = connector.active?.profile?.serverId
-            ?: serverRepository.activeProfile.first()?.serverId
+            ?: profile?.serverId
+            ?: return null
+        val profileId = connector.active?.sessionInfo?.profileId
+            ?: profile?.profileId
             ?: return null
         val conversationId = ConversationIds.privateChat(
-            serverId = serverId,
+            profileId = profileId,
             peerName = name,
             peerWorld = world.ifBlank { null },
         )
@@ -111,6 +134,7 @@ class ChatHomeViewModel @Inject constructor(
         repository.ensureConversation(
             ChatConversation(
                 id = conversationId,
+                profileId = profileId,
                 serverId = serverId,
                 type = ConversationType.PRIVATE,
                 channel = "TELL",
@@ -118,10 +142,14 @@ class ChatHomeViewModel @Inject constructor(
                 peerWorld = world.ifBlank { null },
                 displayName = displayName,
                 lastMessageText = "",
-                lastMessageAt = System.currentTimeMillis(),
+                lastMessageAt = 0,
                 unreadCount = 0,
             ),
         )
         return conversationId
     }
+
+    private suspend fun currentProfileId(): String? =
+        connector.active?.sessionInfo?.profileId
+            ?: serverRepository.activeProfile.first()?.profileId
 }

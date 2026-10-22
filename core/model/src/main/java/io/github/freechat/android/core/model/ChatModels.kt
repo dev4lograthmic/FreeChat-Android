@@ -3,11 +3,13 @@ package io.github.freechat.android.core.model
 enum class ConversationType {
     SYSTEM,
     PUBLIC_CHANNEL,
+    LINKSHELL,
     PRIVATE,
 }
 
 data class ChatConversation(
     val id: String,
+    val profileId: String,
     val serverId: String,
     val type: ConversationType,
     val channel: String?,
@@ -22,6 +24,7 @@ data class ChatConversation(
 data class ChatMessage(
     val messageId: String,
     val conversationId: String,
+    val profileId: String,
     val serverId: String,
     val sessionId: String,
     val sequence: Long,
@@ -39,6 +42,7 @@ data class ChatMessage(
 
 data class SendJob(
     val requestId: String,
+    val profileId: String,
     val serverId: String,
     val conversationId: String,
     val channel: String,

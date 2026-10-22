@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SessionDao {
-    @Query("SELECT * FROM sessions WHERE serverId = :serverId ORDER BY startedAt DESC LIMIT 1")
-    fun observeLatest(serverId: String): Flow<SessionEntity?>
+    @Query("SELECT * FROM sessions WHERE profileId = :profileId ORDER BY startedAt DESC LIMIT 1")
+    fun observeLatest(profileId: String): Flow<SessionEntity?>
 
     @Query("SELECT * FROM sessions WHERE sessionId = :sessionId")
     suspend fun get(sessionId: String): SessionEntity?
@@ -24,8 +24,8 @@ interface SessionDao {
     @Query("UPDATE sessions SET endedAt = :endedAt WHERE sessionId = :sessionId")
     suspend fun markEnded(sessionId: String, endedAt: Long)
 
-    @Query("DELETE FROM sessions WHERE serverId = :serverId")
-    suspend fun deleteByServer(serverId: String)
+    @Query("DELETE FROM sessions WHERE profileId = :profileId")
+    suspend fun deleteByProfile(profileId: String)
 
     @Query("DELETE FROM sessions")
     suspend fun deleteAll()

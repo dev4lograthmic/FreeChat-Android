@@ -12,15 +12,15 @@ interface ServerDao {
     @Query("SELECT * FROM servers ORDER BY lastConnectedAt DESC, createdAt DESC")
     fun observeAll(): Flow<List<ServerEntity>>
 
-    @Query("SELECT * FROM servers WHERE serverId = :serverId")
-    suspend fun get(serverId: String): ServerEntity?
+    @Query("SELECT * FROM servers WHERE profileId = :profileId")
+    suspend fun get(profileId: String): ServerEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(server: ServerEntity)
 
-    @Query("UPDATE servers SET lastConnectedAt = :at WHERE serverId = :serverId")
-    suspend fun markConnected(serverId: String, at: Long)
+    @Query("UPDATE servers SET lastConnectedAt = :at WHERE profileId = :profileId")
+    suspend fun markConnected(profileId: String, at: Long)
 
-    @Query("DELETE FROM servers WHERE serverId = :serverId")
-    suspend fun delete(serverId: String)
+    @Query("DELETE FROM servers WHERE profileId = :profileId")
+    suspend fun delete(profileId: String)
 }

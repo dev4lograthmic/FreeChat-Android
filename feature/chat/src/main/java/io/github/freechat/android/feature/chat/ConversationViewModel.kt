@@ -82,6 +82,7 @@ class ConversationViewModel @Inject constructor(
                     else -> result.message.ifBlank { result.status.name }
                 }
                 if (result.status == SendOutcomeStatus.SUBMITTED) {
+                    repository.unhideConversation(conversationId)
                     _input.value = ""
                 }
             } catch (error: Exception) {

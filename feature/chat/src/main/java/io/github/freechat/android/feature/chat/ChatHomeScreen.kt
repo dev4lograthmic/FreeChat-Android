@@ -181,14 +181,55 @@ fun ChatScreen(
         .filter { it.type == ConversationType.SYSTEM }
         .sortedBy { ConversationLabels.systemOrder(it.channel.orEmpty()) }
     val public = conversations
-        .filter { it.type == ConversationType.PUBLIC_CHANNEL }
+        .filter {
+            it.type == ConversationType.PUBLIC_CHANNEL &&
+                !ConversationLabels.isLinkshell(it.channel)
+        }
         .sortedBy { ConversationLabels.publicOrder(it.channel.orEmpty()) }
+    val linkshell = conversations
+        // Group by channel so rows stored before linkshells had their own type
+        // still move to the right section. Slots without a game-provided name
+        // are intentionally kept out of the chat list.
+        .filter {
+            ConversationLabels.isLinkshell(it.channel) &&
+                ConversationLabels.linkshellName(it.channel, it.displayName) != null
+        }
+        .sortedBy { ConversationLabels.linkshellOrder(it.channel.orEmpty()) }
     val private = conversations
-        .filter { it.type == ConversationType.PRIVATE }
+        // Opening a friend creates an empty placeholder so the composer can
+        // work before the first message exists. Only show it once it has one.
+        .filter { it.type == ConversationType.PRIVATE && it.lastMessageText.isNotBlank() }
         .sortedByDescending { it.lastMessageAt }
     val systemUnread = system.sumOf { it.unreadCount }
     val publicUnread = public.sumOf { it.unreadCount }
+    val linkshellUnread = linkshell.sumOf { it.unreadCount }
     val privateUnread = private.sumOf { it.unreadCount }
+    val visibleConversations = system + public + linkshell + private
+
+    val searchableConversations = visibleConversations.map { conversation ->
+        conversation to chatChannelLabel(
+            type = conversation.type,
+            channel = conversation.channel,
+            fallback = conversation.displayName.ifBlank { conversation.channel.orEmpty() },
+        )
+    }
+    val conversationResults = if (query.isBlank()) {
+        emptyList()
+    } else {
+        searchableConversations
+            .filter { (conversation, label) ->
+                conversation.displayName.contains(query, ignoreCase = true) ||
+                    conversation.peerName.orEmpty().contains(query, ignoreCase = true) ||
+                    conversation.channel.orEmpty().contains(query, ignoreCase = true) ||
+                    label.contains(query, ignoreCase = true)
+            }
+            .map { it.first }
+    }
+    val namedLinkshellChannels = linkshell.mapNotNull { it.channel }.toSet()
+    val visibleSearchResults = searchResults.filter { message ->
+        !ConversationLabels.isLinkshell(message.channel) ||
+            message.channel in namedLinkshellChannels
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -252,7 +293,7 @@ fun ChatScreen(
 
 
             if (query.isNotBlank()) {
-                if (searchResults.isEmpty()) {
+                if (conversationResults.isEmpty() && visibleSearchResults.isEmpty()) {
                     item {
                         FreeChatEmptyState(
                             icon = Icons.AutoMirrored.Filled.Chat,
@@ -261,18 +302,49 @@ fun ChatScreen(
                         )
                     }
                 } else {
-                    items(searchResults, key = { it.messageId }) { message ->
-                        SearchResultRow(
-                            message = message,
-                            modifier = Modifier.animateItem(),
-                        ) {
-                            query = ""
-                            onSearch("")
-                            onOpenConversation(message.conversationId)
+                    if (conversationResults.isNotEmpty()) {
+                        item {
+                            FreeChatSectionHeader(
+                                text = stringResource(R.string.chat_search_conversations),
+                            )
+                        }
+                        items(
+                            conversationResults,
+                            key = { "conversation-${it.id}" },
+                        ) { conversation ->
+                            ConversationRow(
+                                conversation = conversation,
+                                modifier = Modifier.animateItem(),
+                                onClick = {
+                                    query = ""
+                                    onSearch("")
+                                    onOpenConversation(conversation.id)
+                                },
+                            )
+                        }
+                    }
+                    if (visibleSearchResults.isNotEmpty()) {
+                        item {
+                            FreeChatSectionHeader(
+                                text = stringResource(R.string.chat_search_messages),
+                            )
+                        }
+                        items(
+                            visibleSearchResults,
+                            key = { "message-${it.messageId}" },
+                        ) { message ->
+                            SearchResultRow(
+                                message = message,
+                                modifier = Modifier.animateItem(),
+                            ) {
+                                query = ""
+                                onSearch("")
+                                onOpenConversation(message.conversationId)
+                            }
                         }
                     }
                 }
-            } else if (conversations.isEmpty()) {
+            } else if (visibleConversations.isEmpty()) {
                 item {
                     if (isConnected) {
                         FreeChatEmptyState(
@@ -326,6 +398,27 @@ fun ChatScreen(
                     }
                     if (ConversationType.PUBLIC_CHANNEL !in collapsedSections) {
                         items(public, key = { it.id }) { conversation ->
+                            ConversationRow(
+                                conversation = conversation,
+                                modifier = Modifier.animateItem(),
+                                onClick = { onOpenConversation(conversation.id) },
+                            )
+                        }
+                    }
+                }
+
+                if (linkshell.isNotEmpty()) {
+                    item {
+                        FreeChatSectionHeader(
+                            modifier = Modifier.animateItem(),
+                            text = stringResource(R.string.chat_section_linkshell),
+                            expanded = ConversationType.LINKSHELL !in collapsedSections,
+                            unreadCount = linkshellUnread,
+                            onClick = { onToggleSection(ConversationType.LINKSHELL) },
+                        )
+                    }
+                    if (ConversationType.LINKSHELL !in collapsedSections) {
+                        items(linkshell, key = { it.id }) { conversation ->
                             ConversationRow(
                                 conversation = conversation,
                                 modifier = Modifier.animateItem(),
@@ -765,6 +858,7 @@ private fun previewConversations(): List<ChatConversation> {
     return listOf(
         ChatConversation(
             id = "preview-system",
+            profileId = "preview:1",
             serverId = "preview",
             type = ConversationType.SYSTEM,
             channel = "SYSTEM",
@@ -777,6 +871,7 @@ private fun previewConversations(): List<ChatConversation> {
         ),
         ChatConversation(
             id = "preview-say",
+            profileId = "preview:1",
             serverId = "preview",
             type = ConversationType.PUBLIC_CHANNEL,
             channel = "SAY",
@@ -789,6 +884,7 @@ private fun previewConversations(): List<ChatConversation> {
         ),
         ChatConversation(
             id = "preview-party",
+            profileId = "preview:1",
             serverId = "preview",
             type = ConversationType.PUBLIC_CHANNEL,
             channel = "PARTY",
@@ -800,7 +896,21 @@ private fun previewConversations(): List<ChatConversation> {
             unreadCount = 1,
         ),
         ChatConversation(
+            id = "preview-linkshell",
+            profileId = "preview:1",
+            serverId = "preview",
+            type = ConversationType.LINKSHELL,
+            channel = "LINKSHELL_1",
+            peerName = null,
+            peerWorld = null,
+            displayName = "Crystal Guild",
+            lastMessageText = "Y'shtola: Gathering at the aetheryte.",
+            lastMessageAt = now - 240_000,
+            unreadCount = 1,
+        ),
+        ChatConversation(
             id = "preview-tell",
+            profileId = "preview:1",
             serverId = "preview",
             type = ConversationType.PRIVATE,
             channel = "TELL",

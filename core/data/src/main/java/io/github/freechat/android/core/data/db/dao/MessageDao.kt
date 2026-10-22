@@ -32,25 +32,36 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE messageId = :messageId")
     suspend fun get(messageId: String): MessageEntity?
 
-    @Query("SELECT * FROM messages WHERE serverId = :serverId ORDER BY timestamp DESC LIMIT :limit")
-    suspend fun getByServer(serverId: String, limit: Int): List<MessageEntity>
+    @Query(
+        "SELECT * FROM messages WHERE profileId = :profileId " +
+            "ORDER BY timestamp DESC LIMIT :limit",
+    )
+    suspend fun getByProfile(profileId: String, limit: Int): List<MessageEntity>
 
     @Query(
         """
         SELECT m.* FROM messages m
         JOIN messages_fts f ON m.messageId = f.messageId
         WHERE messages_fts MATCH :match
+          AND m.profileId = :profileId
           AND (:conversationId IS NULL OR m.conversationId = :conversationId)
         ORDER BY m.timestamp DESC
         LIMIT :limit
         """,
     )
-    suspend fun search(match: String, conversationId: String?, limit: Int): List<MessageEntity>
+    suspend fun search(
+        match: String,
+        profileId: String,
+        conversationId: String?,
+        limit: Int,
+    ): List<MessageEntity>
 
     @Query(
         """
         DELETE FROM messages_fts
-        WHERE messageId IN (SELECT messageId FROM messages WHERE timestamp < :cutoff)
+        WHERE messageId IN (
+            SELECT messageId FROM messages WHERE timestamp < :cutoff
+        )
         """,
     )
     suspend fun deleteFtsOlderThan(cutoff: Long)
@@ -61,13 +72,15 @@ interface MessageDao {
     @Query(
         """
         DELETE FROM messages_fts
-        WHERE messageId IN (SELECT messageId FROM messages WHERE serverId = :serverId)
+        WHERE messageId IN (
+            SELECT messageId FROM messages WHERE profileId = :profileId
+        )
         """,
     )
-    suspend fun deleteFtsByServer(serverId: String)
+    suspend fun deleteFtsByProfile(profileId: String)
 
-    @Query("DELETE FROM messages WHERE serverId = :serverId")
-    suspend fun deleteByServer(serverId: String): Int
+    @Query("DELETE FROM messages WHERE profileId = :profileId")
+    suspend fun deleteByProfile(profileId: String): Int
 
     @Query("DELETE FROM messages_fts")
     suspend fun deleteAllFts()

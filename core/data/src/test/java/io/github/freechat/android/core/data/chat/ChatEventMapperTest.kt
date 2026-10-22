@@ -14,25 +14,58 @@ class ChatEventMapperTest {
     fun `maps a public channel message`() {
         val mapped = ChatEventMapper.map(
             event = event(ChatChannel.CHAT_CHANNEL_PARTY, "hello"),
+            profileId = "srv:100",
             serverId = "srv",
             sessionId = "sess",
         )
 
-        assertThat(mapped.conversation.id).isEqualTo("srv:public:PARTY")
+        assertThat(mapped.conversation.id).isEqualTo("srv:100:public:PARTY")
         assertThat(mapped.conversation.type).isEqualTo(ConversationType.PUBLIC_CHANNEL)
         assertThat(mapped.message.text).isEqualTo("hello")
         assertThat(mapped.message.senderName).isEqualTo("Alice")
     }
 
     @Test
-    fun `maps a private tell to a peer conversation`() {
+    fun `maps a named linkshell to its own conversation`() {
+        val event = event(ChatChannel.CHAT_CHANNEL_LINKSHELL_1, "hi")
+            .toBuilder()
+            .setChannelName("Crystal Guild")
+            .build()
         val mapped = ChatEventMapper.map(
-            event = event(ChatChannel.CHAT_CHANNEL_TELL, "psst"),
+            event = event,
+            profileId = "srv:100",
             serverId = "srv",
             sessionId = "sess",
         )
 
-        assertThat(mapped.conversation.id).isEqualTo("srv:tell:Typhon:Alice")
+        assertThat(mapped.conversation.type).isEqualTo(ConversationType.LINKSHELL)
+        assertThat(mapped.conversation.id).isEqualTo("srv:100:public:LINKSHELL_1")
+        assertThat(mapped.conversation.displayName).isEqualTo("Crystal Guild")
+    }
+
+    @Test
+    fun `leaves an unnamed linkshell without a display name`() {
+        val mapped = ChatEventMapper.map(
+            event = event(ChatChannel.CHAT_CHANNEL_CROSS_LINKSHELL_2, "hi"),
+            profileId = "srv:100",
+            serverId = "srv",
+            sessionId = "sess",
+        )
+
+        assertThat(mapped.conversation.type).isEqualTo(ConversationType.LINKSHELL)
+        assertThat(mapped.conversation.displayName).isEmpty()
+    }
+
+    @Test
+    fun `maps a private tell to a peer conversation`() {
+        val mapped = ChatEventMapper.map(
+            event = event(ChatChannel.CHAT_CHANNEL_TELL, "psst"),
+            profileId = "srv:100",
+            serverId = "srv",
+            sessionId = "sess",
+        )
+
+        assertThat(mapped.conversation.id).isEqualTo("srv:100:tell:Typhon:Alice")
         assertThat(mapped.conversation.type).isEqualTo(ConversationType.PRIVATE)
         assertThat(mapped.conversation.displayName).isEqualTo("Alice@Typhon")
     }
@@ -41,12 +74,13 @@ class ChatEventMapperTest {
     fun `maps battle to system conversation`() {
         val mapped = ChatEventMapper.map(
             event = event(ChatChannel.CHAT_CHANNEL_BATTLE, "hit"),
+            profileId = "srv:100",
             serverId = "srv",
             sessionId = "sess",
         )
 
         assertThat(mapped.conversation.type).isEqualTo(ConversationType.SYSTEM)
-        assertThat(mapped.conversation.id).isEqualTo("srv:system:BATTLE")
+        assertThat(mapped.conversation.id).isEqualTo("srv:100:system:BATTLE_LOG")
     }
 
     @Test
@@ -57,6 +91,7 @@ class ChatEventMapperTest {
             .build()
         val mapped = ChatEventMapper.map(
             event = event,
+            profileId = "srv:100",
             serverId = "srv",
             sessionId = "sess",
             contentSource = MessageContentSource.ORIGINAL_TEXT,
@@ -73,6 +108,7 @@ class ChatEventMapperTest {
             .build()
         val mapped = ChatEventMapper.map(
             event = event,
+            profileId = "srv:100",
             serverId = "srv",
             sessionId = "sess",
             contentSource = MessageContentSource.RAW_MESSAGE,

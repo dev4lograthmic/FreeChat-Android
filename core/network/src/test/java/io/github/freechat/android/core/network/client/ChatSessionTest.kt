@@ -156,7 +156,8 @@ class ChatSessionTest {
     }
 
     private fun conversation() = ChatConversation(
-        id = "srv:public:PARTY",
+        id = "srv:1:public:PARTY",
+        profileId = "srv:1",
         serverId = "srv",
         type = io.github.freechat.android.core.model.ConversationType.PUBLIC_CHANNEL,
         channel = ChatChannel.CHAT_CHANNEL_PARTY.name,

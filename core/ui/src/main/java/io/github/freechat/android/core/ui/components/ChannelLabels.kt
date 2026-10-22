@@ -14,10 +14,13 @@ fun chatChannelLabel(
     type: ConversationType,
     channel: String?,
     fallback: String,
-): String = if (type == ConversationType.PRIVATE) {
-    fallback
-} else {
-    chatChannelLabel(channel, fallback)
+): String = when (type) {
+    // Private chats and linkshells use a per-conversation peer/custom name.
+    ConversationType.PRIVATE,
+    ConversationType.LINKSHELL,
+    -> fallback
+
+    else -> chatChannelLabel(channel, fallback)
 }
 
 @Composable

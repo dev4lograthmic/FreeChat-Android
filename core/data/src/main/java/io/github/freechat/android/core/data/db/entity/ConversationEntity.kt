@@ -7,11 +7,13 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "conversations",
     indices = [
-        Index(value = ["serverId", "type", "lastMessageAt"]),
+        Index(value = ["profileId", "type", "lastMessageAt"]),
+        Index(value = ["serverId"]),
     ],
 )
 data class ConversationEntity(
     @PrimaryKey val id: String,
+    val profileId: String,
     val serverId: String,
     val type: String,
     val channel: String?,

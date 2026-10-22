@@ -18,8 +18,11 @@ interface DraftDao {
     @Query("DELETE FROM drafts WHERE conversationId = :conversationId")
     suspend fun delete(conversationId: String)
 
-    @Query("DELETE FROM drafts WHERE conversationId IN (SELECT id FROM conversations WHERE serverId = :serverId)")
-    suspend fun deleteByServer(serverId: String)
+    @Query(
+        "DELETE FROM drafts WHERE conversationId IN " +
+            "(SELECT id FROM conversations WHERE profileId = :profileId)",
+    )
+    suspend fun deleteByProfile(profileId: String)
 
     @Query("DELETE FROM drafts")
     suspend fun deleteAll()

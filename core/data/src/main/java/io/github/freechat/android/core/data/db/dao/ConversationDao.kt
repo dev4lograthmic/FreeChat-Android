@@ -9,11 +9,19 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ConversationDao {
-    @Query("SELECT * FROM conversations WHERE type = :type AND hidden = 0 ORDER BY lastMessageAt DESC")
-    fun observeByType(type: String): Flow<List<ConversationEntity>>
+    @Query(
+        "SELECT * FROM conversations " +
+            "WHERE profileId = :profileId AND type = :type AND hidden = 0 " +
+            "ORDER BY lastMessageAt DESC",
+    )
+    fun observeByType(profileId: String, type: String): Flow<List<ConversationEntity>>
 
-    @Query("SELECT * FROM conversations WHERE hidden = 0 ORDER BY lastMessageAt DESC")
-    fun observeAll(): Flow<List<ConversationEntity>>
+    @Query(
+        "SELECT * FROM conversations " +
+            "WHERE profileId = :profileId AND hidden = 0 " +
+            "ORDER BY lastMessageAt DESC",
+    )
+    fun observeAll(profileId: String): Flow<List<ConversationEntity>>
 
     @Query("SELECT * FROM conversations WHERE id = :id")
     suspend fun get(id: String): ConversationEntity?
@@ -24,7 +32,8 @@ interface ConversationDao {
     @Query(
         """
         UPDATE conversations
-        SET lastMessageText = :preview,
+        SET type = :type,
+            lastMessageText = :preview,
             lastMessageAt = :at,
             displayName = CASE
                 WHEN :displayName IS NULL OR :displayName = '' THEN displayName
@@ -37,12 +46,20 @@ interface ConversationDao {
     )
     suspend fun updateAfterMessage(
         id: String,
+        type: String,
         preview: String,
         at: Long,
         increment: Boolean,
         unhide: Boolean,
         displayName: String?,
     )
+
+    @Query(
+        "UPDATE conversations SET type = 'LINKSHELL' " +
+            "WHERE profileId = :profileId AND type = 'PUBLIC_CHANNEL' " +
+            "AND (channel LIKE 'LINKSHELL_%' OR channel LIKE 'CROSS_LINKSHELL_%')",
+    )
+    suspend fun reclassifyLinkshells(profileId: String)
 
     @Query("UPDATE conversations SET unreadCount = 0 WHERE id = :id")
     suspend fun markRead(id: String)
@@ -53,11 +70,14 @@ interface ConversationDao {
     @Query("UPDATE conversations SET hidden = 0 WHERE id = :id")
     suspend fun unhide(id: String)
 
-    @Query("SELECT COALESCE(SUM(unreadCount), 0) FROM conversations")
-    fun observeTotalUnread(): Flow<Int>
+    @Query(
+        "SELECT COALESCE(SUM(unreadCount), 0) FROM conversations " +
+            "WHERE profileId = :profileId",
+    )
+    fun observeTotalUnread(profileId: String): Flow<Int>
 
-    @Query("DELETE FROM conversations WHERE serverId = :serverId")
-    suspend fun deleteByServer(serverId: String)
+    @Query("DELETE FROM conversations WHERE profileId = :profileId")
+    suspend fun deleteByProfile(profileId: String)
 
     @Query("DELETE FROM conversations")
     suspend fun deleteAll()

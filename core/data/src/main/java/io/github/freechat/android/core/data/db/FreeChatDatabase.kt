@@ -2,8 +2,6 @@ package io.github.freechat.android.core.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.freechat.android.core.data.db.dao.ConversationDao
 import io.github.freechat.android.core.data.db.dao.DraftDao
 import io.github.freechat.android.core.data.db.dao.MessageDao
@@ -28,7 +26,7 @@ import io.github.freechat.android.core.data.db.entity.SessionEntity
         SendJobEntity::class,
         DraftEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class FreeChatDatabase : RoomDatabase() {
@@ -41,13 +39,5 @@ abstract class FreeChatDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "freechat.db"
-
-        val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "ALTER TABLE conversations ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
-                )
-            }
-        }
     }
 }

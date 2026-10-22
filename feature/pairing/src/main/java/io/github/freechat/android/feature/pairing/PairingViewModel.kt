@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.freechat.android.core.data.chat.ChatConnector
-import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.model.ServerProfile
 import io.github.freechat.android.core.network.pairing.PairingLinkParser
 import javax.inject.Inject
@@ -29,7 +28,6 @@ data class PairingUiState(
 @HiltViewModel
 class PairingViewModel @Inject constructor(
     private val connector: ChatConnector,
-    private val serverRepository: ServerRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(PairingUiState())
     val state: StateFlow<PairingUiState> = _state.asStateFlow()
@@ -90,7 +88,6 @@ class PairingViewModel @Inject constructor(
                     fingerprintHex = fingerprint,
                 )
                 connector.connect(profile, current.code.trim().ifBlank { null })
-                serverRepository.save(profile, makeActive = true)
                 _state.update { it.copy(isConnecting = false, connected = true) }
             } catch (error: Exception) {
                 _state.update {

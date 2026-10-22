@@ -1,5 +1,6 @@
 package io.github.freechat.android.core.data.chat
 
+import build.buf.gen.freechat.v1.CharacterRef
 import build.buf.gen.freechat.v1.PairingRequired
 import build.buf.gen.freechat.v1.SendResult
 import build.buf.gen.freechat.v1.SendStatus
@@ -10,12 +11,14 @@ import io.github.freechat.android.core.model.ChatMessage
 import io.github.freechat.android.core.model.ChatSourceOption
 import io.github.freechat.android.core.model.MessageContentSource
 import io.github.freechat.android.core.model.FriendListSnapshot
+import io.github.freechat.android.core.model.ProfileIds
 import io.github.freechat.android.core.model.SendOutcome
 import io.github.freechat.android.core.model.SendOutcomeStatus
 import io.github.freechat.android.core.model.ServerProfile
 import io.github.freechat.android.core.model.SessionInfo
 import io.github.freechat.android.core.network.client.ChatSession
 import io.github.freechat.android.core.network.client.FreeChatClient
+import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -45,10 +48,13 @@ class ChatController(
             pairingCodeProvider = pairingCodeProvider,
             onPairingRequired = onPairingRequired,
         )
+        val characterId = connection.welcome.server.character.contentId
+        val profileId = ProfileIds.of(profile.serverId, characterId)
         val session = ChatSession(connection)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val processor = ChatEventProcessor(
             repository = repository,
+            profileId = profileId,
             serverId = profile.serverId,
             sessionId = connection.welcome.sessionId,
             contentSource = contentSource,
@@ -68,6 +74,7 @@ class ChatController(
                 includeOriginal = contentSource.needsOriginal,
             )
             repository.ensureDefaultConversations(
+                profileId = profileId,
                 serverId = profile.serverId,
                 supportedChannels = connection.welcome.server.capabilities.supportedChannelsList
                     .map { it.name },
@@ -81,7 +88,11 @@ class ChatController(
 
         return ActiveChat(
             profile = profile,
-            sessionInfo = connection.welcome.toSessionInfo(profile),
+            sessionInfo = connection.welcome.toSessionInfo(
+                profile = profile,
+                profileId = profileId,
+                characterId = characterId,
+            ),
             events = eventFlow.asSharedFlow(),
             closed = session.closed,
             session = session,
@@ -116,14 +127,30 @@ class ActiveChat internal constructor(
     }
 }
 
-private fun Welcome.toSessionInfo(profile: ServerProfile): SessionInfo = SessionInfo(
+private fun Welcome.toSessionInfo(
+    profile: ServerProfile,
+    profileId: String,
+    characterId: Long,
+): SessionInfo = SessionInfo(
     serverId = server.serverId,
     serverName = server.serverName.ifBlank { profile.serverName.orEmpty() },
+    profileId = profileId,
+    characterId = characterId,
     characterName = server.character.name,
     worldName = server.character.worldName,
+    rawCharacterJson = server.character.toRawJson(),
     sessionId = sessionId,
     enabledFeatures = enabledFeaturesList,
 )
+
+private fun CharacterRef.toRawJson(): String = JSONObject().apply {
+    put("name", name)
+    put("worldId", worldId)
+    put("worldName", worldName)
+    put("contentId", contentId)
+    put("isPlayer", isPlayer)
+    put("isLocal", isLocal)
+}.toString(2)
 
 private fun SendResult.toOutcome(): SendOutcome {
     val outcomeStatus = when (status) {

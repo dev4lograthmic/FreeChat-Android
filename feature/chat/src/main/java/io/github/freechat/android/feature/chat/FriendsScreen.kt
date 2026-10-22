@@ -1,41 +1,45 @@
 package io.github.freechat.android.feature.chat
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,21 +49,28 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.freechat.android.core.model.FriendInfo
+import io.github.freechat.android.core.ui.R
 import io.github.freechat.android.core.ui.components.FreeChatAvatar
 import io.github.freechat.android.core.ui.components.FreeChatEmptyState
+import io.github.freechat.android.core.ui.theme.FreeChatTheme
 import kotlinx.coroutines.launch
 
 private enum class FriendFilter {
     ALL,
     ONLINE,
     OFFLINE,
-    UNKNOWN,
+}
+
+private enum class FriendPresence {
+    ONLINE,
+    OFFLINE,
 }
 
 private enum class FriendSort {
@@ -68,30 +79,49 @@ private enum class FriendSort {
     WORLD,
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendsScreen(
+fun FriendsRoute(
     onOpenPairing: () -> Unit,
     onOpenConversation: (String) -> Unit,
     viewModel: FriendsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf(FriendFilter.ALL) }
-    var sort by remember { mutableStateOf(FriendSort.DEFAULT) }
-    var sortMenu by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { viewModel.load() }
+
+    FriendsScreen(
+        state = state,
+        onRefresh = { viewModel.load(force = true) },
+        onOpenPairing = onOpenPairing,
+        onOpenFriend = { friend ->
+            scope.launch {
+                viewModel.openTell(friend)?.let(onOpenConversation)
+            }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FriendsScreen(
+    state: FriendsUiState,
+    onRefresh: () -> Unit,
+    onOpenPairing: () -> Unit,
+    onOpenFriend: (FriendInfo) -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf(FriendFilter.ALL) }
+    var sort by remember { mutableStateOf(FriendSort.DEFAULT) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val visible = state.friends
         .filter { friend ->
             (query.isBlank() || friend.name.contains(query, ignoreCase = true)) &&
                 when (filter) {
                     FriendFilter.ALL -> true
-                    FriendFilter.ONLINE -> friend.presence() == FriendFilter.ONLINE
-                    FriendFilter.OFFLINE -> friend.presence() == FriendFilter.OFFLINE
-                    FriendFilter.UNKNOWN -> friend.presence() == FriendFilter.UNKNOWN
+                    FriendFilter.ONLINE -> friend.presence() == FriendPresence.ONLINE
+                    FriendFilter.OFFLINE -> friend.presence() == FriendPresence.OFFLINE
                 }
         }
         .let { friends ->
@@ -99,232 +129,465 @@ fun FriendsScreen(
                 FriendSort.DEFAULT -> friends
                 FriendSort.NAME -> friends.sortedBy { it.name.lowercase() }
                 FriendSort.WORLD -> friends.sortedBy {
-                    (it.currentWorldName ?: it.homeWorldName).orEmpty().lowercase()
+                    it.homeWorldName.orEmpty().lowercase()
                 }
             }
         }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
-    ) {
+    val error = state.error
+    val errorMessage = when (error) {
+        FriendsError.NOT_CONNECTED -> stringResource(R.string.friends_not_connected_message)
+        FriendsError.DISCONNECTED -> stringResource(R.string.friends_disconnected_message)
+        FriendsError.LOAD_FAILED -> stringResource(R.string.friends_error_message)
+        null -> null
+    }
 
-            SearchBar(
-                inputField = {
-                    SearchBarDefaults.InputField(
-                        query = query,
-                        onQueryChange = { query = it },
-                        onSearch = {},
-                        expanded = false,
-                        onExpandedChange = {},
-                        placeholder = { Text("搜索好友") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null)
-                        },
-                        trailingIcon = if (query.isNotEmpty()) {
-                            {
-                                IconButton(onClick = { query = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = null)
-                                }
-                            }
-                        } else {
-                            null
-                        },
+    LaunchedEffect(error, state.friends.isEmpty()) {
+        if (error != null && state.friends.isNotEmpty()) {
+            snackbarHostState.showSnackbar(errorMessage.orEmpty())
+        }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.friends_title),
+                        style = MaterialTheme.typography.titleLarge,
                     )
                 },
-                expanded = false,
-                onExpandedChange = {},
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                windowInsets = WindowInsets(0, 0, 0, 0),
-            ) {}
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FilterChip(
-                    selected = filter == FriendFilter.ONLINE,
-                    onClick = { filter = FriendFilter.ONLINE },
-                    label = { Text("在线") },
-                )
-                FilterChip(
-                    selected = filter == FriendFilter.OFFLINE,
-                    onClick = { filter = FriendFilter.OFFLINE },
-                    label = { Text("离线") },
-                )
-                FilterChip(
-                    selected = filter == FriendFilter.UNKNOWN,
-                    onClick = { filter = FriendFilter.UNKNOWN },
-                    label = { Text("未知") },
-                )
-                Spacer(Modifier.weight(1f))
-                Box {
-                    IconButton(onClick = { sortMenu = true }) {
-                        Icon(Icons.Default.Sort, contentDescription = "排序")
-                    }
-                    DropdownMenu(
-                        expanded = sortMenu,
-                        onDismissRequest = { sortMenu = false },
+                actions = {
+                    IconButton(
+                        onClick = onRefresh,
+                        enabled = !state.isLoading,
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("默认") },
-                            onClick = { sort = FriendSort.DEFAULT; sortMenu = false },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("按首字母") },
-                            onClick = { sort = FriendSort.NAME; sortMenu = false },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("按服务器") },
-                            onClick = { sort = FriendSort.WORLD; sortMenu = false },
-                        )
+                        if (state.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = stringResource(R.string.friends_refresh),
+                            )
+                        }
                     }
-                }
-                IconButton(onClick = { viewModel.load(force = true) }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "刷新")
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0),
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { contentPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding),
+            contentPadding = PaddingValues(bottom = 32.dp),
+        ) {
+            item {
+                FriendsSearchField(
+                    query = query,
+                    onQueryChange = { query = it },
+                    modifier = Modifier.padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 4.dp,
+                        bottom = 8.dp,
+                    ),
+                )
+            }
+
+            if (state.friends.isNotEmpty()) {
+                item {
+                    FriendsFilterRow(
+                        filter = filter,
+                        onFilterChange = { filter = it },
+                        sort = sort,
+                        onSortChange = { sort = it },
+                        friendCount = visible.size,
+                    )
                 }
             }
 
             when {
-                state.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
+                error != null && state.friends.isEmpty() -> {
+                    item {
+                        FriendsErrorState(
+                            error = error,
+                            onRefresh = onRefresh,
+                            onOpenPairing = onOpenPairing,
+                        )
                     }
                 }
 
-                state.error != null -> {
-                    FreeChatEmptyState(
-                        icon = Icons.Default.Group,
-                        title = "无法加载好友",
-                        message = state.error.orEmpty(),
-                    ) {
-                        androidx.compose.material3.Button(onClick = onOpenPairing) {
-                            Text("连接服务器")
+                !state.loaded || (state.isLoading && state.friends.isEmpty()) -> {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 64.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
                         }
                     }
                 }
 
                 visible.isEmpty() -> {
-                    FreeChatEmptyState(
-                        icon = Icons.Default.Group,
-                        title = "暂无好友",
-                        message = if (state.friends.isEmpty()) {
-                            "连接服务器后显示好友列表。"
-                        } else {
-                            "没有符合当前筛选条件的好友。"
-                        },
-                    )
+                    item {
+                        val noMatch = state.friends.isNotEmpty()
+                        FreeChatEmptyState(
+                            icon = Icons.Default.Group,
+                            title = stringResource(
+                                if (noMatch) {
+                                    R.string.friends_no_match_title
+                                } else {
+                                    R.string.friends_empty_title
+                                },
+                            ),
+                            message = stringResource(
+                                if (noMatch) {
+                                    R.string.friends_no_match_message
+                                } else {
+                                    R.string.friends_empty_message
+                                },
+                            ),
+                        )
+                    }
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 8.dp,
-                            bottom = 32.dp,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(visible, key = { it.contentId }) { friend ->
-                            FriendCard(
-                                friend = friend,
-                                modifier = Modifier.animateItem(),
-                            ) {
-                                scope.launch {
-                                    val id = viewModel.openTell(friend)
-                                    if (id != null) onOpenConversation(id)
-                                }
-                            }
-                        }
+                    items(visible, key = { it.contentId }) { friend ->
+                        FriendRow(
+                            friend = friend,
+                            modifier = Modifier.animateItem(),
+                            onClick = { onOpenFriend(friend) },
+                        )
                     }
                 }
-            }
-    }
-}
-
-@Composable
-private fun FriendCard(
-    friend: FriendInfo,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val world = friend.currentWorldName ?: friend.homeWorldName
-    val details = listOfNotNull(
-        friend.freeCompanyTag?.let { "《$it》" },
-        friend.jobName,
-        friend.territoryName,
-    ).joinToString(" · ")
-    val presence = friend.presence()
-    val statusColor = when (presence) {
-        FriendFilter.ONLINE -> MaterialTheme.colorScheme.primary
-        FriendFilter.OFFLINE -> MaterialTheme.colorScheme.onSurfaceVariant
-        else -> MaterialTheme.colorScheme.tertiary
-    }
-
-    Card(
-        modifier = modifier,
-        onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FreeChatAvatar(label = friend.name, size = 44.dp)
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    if (world != null) "${friend.name}@$world" else friend.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (details.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        details,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(8.dp),
-                    shape = CircleShape,
-                    color = statusColor,
-                    content = {},
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    when (presence) {
-                        FriendFilter.ONLINE -> "在线"
-                        FriendFilter.OFFLINE -> "离线"
-                        else -> "未知"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = statusColor,
-                )
             }
         }
     }
 }
 
-private fun FriendInfo.presence(): FriendFilter = when {
-    identityUnavailable -> FriendFilter.UNKNOWN
-    statusBits != 0L -> FriendFilter.ONLINE
-    else -> FriendFilter.OFFLINE
+@Composable
+private fun FriendsErrorState(
+    error: FriendsError,
+    onRefresh: () -> Unit,
+    onOpenPairing: () -> Unit,
+) {
+    val title = when (error) {
+        FriendsError.NOT_CONNECTED -> R.string.friends_not_connected_title
+        FriendsError.DISCONNECTED -> R.string.friends_disconnected_title
+        FriendsError.LOAD_FAILED -> R.string.friends_error_title
+    }
+    val message = when (error) {
+        FriendsError.NOT_CONNECTED -> R.string.friends_not_connected_message
+        FriendsError.DISCONNECTED -> R.string.friends_disconnected_message
+        FriendsError.LOAD_FAILED -> R.string.friends_error_message
+    }
+
+    FreeChatEmptyState(
+        icon = Icons.Default.Group,
+        title = stringResource(title),
+        message = stringResource(message),
+    ) {
+        Button(
+            onClick = if (error == FriendsError.LOAD_FAILED) onRefresh else onOpenPairing,
+        ) {
+            Text(
+                stringResource(
+                    if (error == FriendsError.LOAD_FAILED) {
+                        R.string.common_retry
+                    } else {
+                        R.string.common_connect_server
+                    },
+                ),
+            )
+        }
+    }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FriendsSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SearchBar(
+        inputField = {
+            SearchBarDefaults.InputField(
+                query = query,
+                onQueryChange = onQueryChange,
+                onSearch = {},
+                expanded = false,
+                onExpandedChange = {},
+                placeholder = { Text(stringResource(R.string.friends_search_placeholder)) },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                },
+                trailingIcon = if (query.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.friends_clear_search),
+                            )
+                        }
+                    }
+                } else {
+                    null
+                },
+            )
+        },
+        expanded = false,
+        onExpandedChange = {},
+        modifier = modifier.fillMaxWidth(),
+        windowInsets = WindowInsets(0, 0, 0, 0),
+    ) {}
+}
+
+@Composable
+private fun FriendsFilterRow(
+    filter: FriendFilter,
+    onFilterChange: (FriendFilter) -> Unit,
+    sort: FriendSort,
+    onSortChange: (FriendSort) -> Unit,
+    friendCount: Int,
+) {
+    var sortMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FriendFilter.entries.forEach { option ->
+                FilterChip(
+                    selected = filter == option,
+                    onClick = { onFilterChange(option) },
+                    label = { Text(stringResource(option.labelRes())) },
+                )
+            }
+        }
+
+        Text(
+            text = friendCount.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+
+        Box {
+            IconButton(onClick = { sortMenu = true }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                    contentDescription = stringResource(R.string.friends_sort),
+                )
+            }
+            DropdownMenu(
+                expanded = sortMenu,
+                onDismissRequest = { sortMenu = false },
+            ) {
+                FriendSort.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(option.labelRes())) },
+                        onClick = {
+                            onSortChange(option)
+                            sortMenu = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FriendRow(
+    friend: FriendInfo,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val world = friend.homeWorldName
+        ?: stringResource(R.string.friends_unknown_world)
+    val presence = friend.presence()
+    val statusColor = when (presence) {
+        FriendPresence.ONLINE -> MaterialTheme.colorScheme.primary
+        FriendPresence.OFFLINE -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    ListItem(
+        headlineContent = {
+            Text(
+                text = friend.name,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        supportingContent = {
+            Text(
+                text = world,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        leadingContent = {
+            FreeChatAvatar(label = friend.name)
+        },
+        trailingContent = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Badge(containerColor = statusColor)
+                Text(
+                    text = stringResource(presence.labelRes()),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = statusColor,
+                )
+            }
+        },
+        modifier = modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+        tonalElevation = 0.dp,
+    )
+}
+
+private fun FriendInfo.presence(): FriendPresence =
+    if (statusBits != 0L) FriendPresence.ONLINE else FriendPresence.OFFLINE
+
+private fun FriendFilter.labelRes(): Int = when (this) {
+    FriendFilter.ALL -> R.string.friends_filter_all
+    FriendFilter.ONLINE -> R.string.friends_filter_online
+    FriendFilter.OFFLINE -> R.string.friends_filter_offline
+}
+
+private fun FriendPresence.labelRes(): Int = when (this) {
+    FriendPresence.ONLINE -> R.string.friends_status_online
+    FriendPresence.OFFLINE -> R.string.friends_status_offline
+}
+
+private fun FriendSort.labelRes(): Int = when (this) {
+    FriendSort.DEFAULT -> R.string.friends_sort_default
+    FriendSort.NAME -> R.string.friends_sort_name
+    FriendSort.WORLD -> R.string.friends_sort_world
+}
+
+@Preview(name = "Friends list", showBackground = true)
+@Composable
+private fun FriendsScreenPreview() {
+    FreeChatTheme {
+        FriendsScreen(
+            state = FriendsUiState(
+                friends = previewFriends(),
+                loaded = true,
+            ),
+            onRefresh = {},
+            onOpenPairing = {},
+            onOpenFriend = {},
+        )
+    }
+}
+
+@Preview(name = "Friends empty", showBackground = true)
+@Composable
+private fun FriendsScreenEmptyPreview() {
+    FreeChatTheme {
+        FriendsScreen(
+            state = FriendsUiState(loaded = true),
+            onRefresh = {},
+            onOpenPairing = {},
+            onOpenFriend = {},
+        )
+    }
+}
+
+@Preview(name = "Friends error", showBackground = true)
+@Composable
+private fun FriendsScreenErrorPreview() {
+    FreeChatTheme {
+        FriendsScreen(
+            state = FriendsUiState(
+                error = FriendsError.NOT_CONNECTED,
+                loaded = true,
+            ),
+            onRefresh = {},
+            onOpenPairing = {},
+            onOpenFriend = {},
+        )
+    }
+}
+
+private fun previewFriends(): List<FriendInfo> = listOf(
+    FriendInfo(
+        contentId = 1,
+        name = "Y'shtola",
+        homeWorldId = 1,
+        homeWorldName = "Mateus",
+        currentWorldId = 1,
+        currentWorldName = "Mateus",
+        homeDataCenterId = 1,
+        homeDataCenterName = "Crystal",
+        currentDataCenterId = 1,
+        currentDataCenterName = "Crystal",
+        freeCompanyTag = "SCIONS",
+        jobName = "White Mage",
+        territoryName = "Limsa Lominsa",
+        statusBits = 1L,
+        identityUnavailable = false,
+    ),
+    FriendInfo(
+        contentId = 2,
+        name = "Alphinaud",
+        homeWorldId = 1,
+        homeWorldName = "Mateus",
+        currentWorldId = 2,
+        currentWorldName = "Adamantoise",
+        homeDataCenterId = 1,
+        homeDataCenterName = "Crystal",
+        currentDataCenterId = 2,
+        currentDataCenterName = "Aether",
+        freeCompanyTag = "SCIONS",
+        jobName = "Arcanist",
+        territoryName = "Gridania",
+        statusBits = 1L,
+        identityUnavailable = false,
+    ),
+    FriendInfo(
+        contentId = 3,
+        name = "Thancred",
+        homeWorldId = 1,
+        homeWorldName = "Mateus",
+        currentWorldId = 0,
+        currentWorldName = null,
+        homeDataCenterId = 1,
+        homeDataCenterName = "Crystal",
+        currentDataCenterId = 0,
+        currentDataCenterName = null,
+        freeCompanyTag = null,
+        jobName = "Gunbreaker",
+        territoryName = "Ul'dah",
+        statusBits = 0L,
+        identityUnavailable = false,
+    ),
+)

@@ -26,18 +26,23 @@ class ChatRepository(
     private val messageDao = database.messageDao()
     private val draftDao = database.draftDao()
 
-    fun observeConversations(type: ConversationType): Flow<List<ChatConversation>> =
-        conversationDao.observeByType(type.name).map { rows -> rows.map { it.toDomain() } }
+    fun observeConversations(
+        profileId: String,
+        type: ConversationType,
+    ): Flow<List<ChatConversation>> =
+        conversationDao.observeByType(profileId, type.name)
+            .map { rows -> rows.map { it.toDomain() } }
 
-    fun observeAllConversations(): Flow<List<ChatConversation>> =
-        conversationDao.observeAll().map { rows -> rows.map { it.toDomain() } }
+    fun observeAllConversations(profileId: String): Flow<List<ChatConversation>> =
+        conversationDao.observeAll(profileId).map { rows -> rows.map { it.toDomain() } }
 
     fun observeMessages(conversationId: String, limit: Int = 200): Flow<List<ChatMessage>> =
         messageDao.observeByConversation(conversationId, limit).map { rows ->
             rows.asReversed().map { it.toDomain() }
         }
 
-    fun observeTotalUnread(): Flow<Int> = conversationDao.observeTotalUnread()
+    fun observeTotalUnread(profileId: String): Flow<Int> =
+        conversationDao.observeTotalUnread(profileId)
 
     suspend fun getConversation(conversationId: String): ChatConversation? =
         conversationDao.get(conversationId)?.toDomain()
@@ -48,17 +53,25 @@ class ChatRepository(
         }
     }
 
-    suspend fun ensureDefaultConversations(serverId: String, supportedChannels: List<String>) {
+    suspend fun ensureDefaultConversations(
+        profileId: String,
+        serverId: String,
+        supportedChannels: List<String>,
+    ) {
         val supported = supportedChannels
             .map { it.removePrefix("CHAT_CHANNEL_") }
             .toSet()
+        // Linkshells are intentionally absent: they only get a conversation
+        // once the game reports a name, so unnamed slots never clutter the list.
+        conversationDao.reclassifyLinkshells(profileId)
         val publicChannels = ConversationLabels.publicChannels.keys
             .let { channels -> if (supported.isEmpty()) channels else channels.filter { it in supported } }
 
         publicChannels.forEach { channel ->
             ensureConversation(
                 ChatConversation(
-                    id = ConversationIds.publicChannel(serverId, channel),
+                    id = ConversationIds.publicChannel(profileId, channel),
+                    profileId = profileId,
                     serverId = serverId,
                     type = ConversationType.PUBLIC_CHANNEL,
                     channel = channel,
@@ -75,7 +88,8 @@ class ChatRepository(
         ConversationLabels.systemChannels.keys.forEach { key ->
             ensureConversation(
                 ChatConversation(
-                    id = ConversationIds.system(serverId, key),
+                    id = ConversationIds.system(profileId, key),
+                    profileId = profileId,
                     serverId = serverId,
                     type = ConversationType.SYSTEM,
                     channel = key,
@@ -125,6 +139,7 @@ class ChatRepository(
             } else {
                 conversationDao.updateAfterMessage(
                     id = conversation.id,
+                    type = conversation.type.name,
                     preview = preview,
                     at = message.timestamp,
                     increment = !message.outgoing,
@@ -141,21 +156,23 @@ class ChatRepository(
 
     suspend fun search(
         query: String,
+        profileId: String,
         conversationId: String? = null,
         limit: Int = 100,
     ): List<ChatMessage> {
         val match = FtsQuery.build(query) ?: return emptyList()
-        return messageDao.search(match, conversationId, limit).map { it.toDomain() }
+        return messageDao.search(match, profileId, conversationId, limit)
+            .map { it.toDomain() }
     }
 
     suspend fun export(
-        serverId: String,
+        profileId: String,
         format: ExportFormat,
         includeRaw: Boolean,
         output: OutputStream,
         limit: Int = 100_000,
     ) {
-        val messages = messageDao.getByServer(serverId, limit).map { it.toDomain() }
+        val messages = messageDao.getByProfile(profileId, limit).map { it.toDomain() }
         exporter.write(messages, output, format, includeRaw)
     }
 

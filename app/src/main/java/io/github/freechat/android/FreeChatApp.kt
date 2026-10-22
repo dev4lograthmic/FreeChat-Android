@@ -43,8 +43,9 @@ import androidx.navigation.navArgument
 import io.github.freechat.android.core.ui.R
 import io.github.freechat.android.feature.chat.ChatRoute
 import io.github.freechat.android.feature.chat.ConversationRoute
-import io.github.freechat.android.feature.chat.FriendsScreen
+import io.github.freechat.android.feature.chat.FriendsRoute
 import io.github.freechat.android.feature.pairing.PairingRoute
+import io.github.freechat.android.feature.settings.DeveloperOptionsRoute
 import io.github.freechat.android.feature.settings.MeRoute
 import io.github.freechat.android.feature.settings.SettingsScreen
 
@@ -54,6 +55,7 @@ object Routes {
     const val FRIENDS = "friends"
     const val ME = "me"
     const val SETTINGS = "settings"
+    const val DEVELOPER = "developer"
     const val CONVERSATION = "conversation/{conversationId}"
     const val PAIRING = "pairing?link={link}"
 
@@ -179,6 +181,23 @@ fun FreeChatApp(deepLink: String? = null, conversationId: String? = null) {
                         launchSingleTop = true
                     }
                 },
+                onOpenDeveloperOptions = {
+                    navController.navigate(Routes.DEVELOPER) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            route = Routes.DEVELOPER,
+            enterTransition = { secondaryEnter() },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { secondaryExit() },
+        ) {
+            DeveloperOptionsRoute(
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -285,7 +304,7 @@ private fun MainTabs(
                         )
                     }
                     composable(Routes.FRIENDS) {
-                        FriendsScreen(
+                        FriendsRoute(
                             onOpenPairing = { onOpenPairing(null) },
                             onOpenConversation = onOpenConversation,
                         )

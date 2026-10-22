@@ -6,10 +6,14 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "sessions",
-    indices = [Index(value = ["serverId"])],
+    indices = [
+        Index(value = ["profileId"]),
+        Index(value = ["serverId"]),
+    ],
 )
 data class SessionEntity(
     @PrimaryKey val sessionId: String,
+    val profileId: String,
     val serverId: String,
     val startedAt: Long,
     val endedAt: Long?,

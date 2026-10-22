@@ -6,10 +6,14 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "send_jobs",
-    indices = [Index(value = ["serverId", "updatedAt"])],
+    indices = [
+        Index(value = ["profileId", "updatedAt"]),
+        Index(value = ["serverId"]),
+    ],
 )
 data class SendJobEntity(
     @PrimaryKey val requestId: String,
+    val profileId: String,
     val serverId: String,
     val conversationId: String,
     val channel: String,

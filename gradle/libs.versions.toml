@@ -61,7 +61,7 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncycastle" }
-bsr-freechat = { group = "build.buf.gen", name = "free-chat_free-chat_protocolbuffers_kotlin", version = "36.2.0.1.00000000000000.98f4194fdf8b" }
+bsr-freechat = { group = "build.buf.gen", name = "free-chat_free-chat_protocolbuffers_kotlin", version = "36.2.0.1.00000000000000.dde08d7465fc" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

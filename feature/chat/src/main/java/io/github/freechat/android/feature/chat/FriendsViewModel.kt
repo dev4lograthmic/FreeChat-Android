@@ -18,10 +18,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class FriendsError {
+    NOT_CONNECTED,
+    DISCONNECTED,
+    LOAD_FAILED,
+}
+
 data class FriendsUiState(
     val isLoading: Boolean = false,
     val friends: List<FriendInfo> = emptyList(),
-    val error: String? = null,
+    val error: FriendsError? = null,
     val loaded: Boolean = false,
 )
 
@@ -44,7 +50,7 @@ class FriendsViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             friends = emptyList(),
-                            error = "连接已断开",
+                            error = FriendsError.DISCONNECTED,
                             loaded = false,
                         )
                     }
@@ -58,7 +64,7 @@ class FriendsViewModel @Inject constructor(
         if (_state.value.loaded && !force) return
         val active = connector.active
         if (active == null) {
-            _state.update { it.copy(error = "未连接服务器", loaded = true) }
+            _state.update { it.copy(error = FriendsError.NOT_CONNECTED, loaded = true) }
             return
         }
         viewModelScope.launch {
@@ -68,7 +74,7 @@ class FriendsViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        friends = snapshot.players,
+                        friends = snapshot.players.filterNot { it.identityUnavailable },
                         loaded = true,
                     )
                 }
@@ -76,7 +82,7 @@ class FriendsViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        error = error.message ?: "好友列表加载失败",
+                        error = FriendsError.LOAD_FAILED,
                         loaded = true,
                     )
                 }
@@ -85,14 +91,23 @@ class FriendsViewModel @Inject constructor(
     }
 
     suspend fun openTell(friend: FriendInfo): String? {
+        val profile = serverRepository.activeProfile.first()
         val serverId = connector.active?.profile?.serverId
-            ?: serverRepository.activeProfile.first()?.serverId
+            ?: profile?.serverId
             ?: return null
-        val world = friend.currentWorldName ?: friend.homeWorldName
-        val conversationId = ConversationIds.privateChat(serverId, friend.name, world)
+        val profileId = connector.active?.sessionInfo?.profileId
+            ?: profile?.profileId
+            ?: return null
+        val world = friend.homeWorldName
+        val conversationId = ConversationIds.privateChat(
+            profileId = profileId,
+            peerName = friend.name,
+            peerWorld = world,
+        )
         chatRepository.ensureConversation(
             ChatConversation(
                 id = conversationId,
+                profileId = profileId,
                 serverId = serverId,
                 type = ConversationType.PRIVATE,
                 channel = "TELL",
@@ -100,11 +115,10 @@ class FriendsViewModel @Inject constructor(
                 peerWorld = world,
                 displayName = if (world != null) "${friend.name}@$world" else friend.name,
                 lastMessageText = "",
-                lastMessageAt = System.currentTimeMillis(),
+                lastMessageAt = 0,
                 unreadCount = 0,
             ),
         )
-        chatRepository.unhideConversation(conversationId)
         return conversationId
     }
 }

@@ -7,14 +7,15 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "messages",
     indices = [
-        Index(value = ["conversationId", "timestamp"]),
-        Index(value = ["serverId", "timestamp"]),
+        Index(value = ["profileId", "conversationId", "timestamp"]),
+        Index(value = ["profileId", "serverId", "timestamp"]),
         Index(value = ["dedupeKey"]),
     ],
 )
 data class MessageEntity(
     @PrimaryKey val messageId: String,
     val conversationId: String,
+    val profileId: String,
     val serverId: String,
     val sessionId: String,
     val sequence: Long,

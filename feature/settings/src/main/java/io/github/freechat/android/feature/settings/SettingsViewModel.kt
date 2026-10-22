@@ -51,14 +51,23 @@ class SettingsViewModel @Inject constructor(
     val activeChat get() = connector.active
     val isConnected = connector.isConnected
 
-    fun setActive(serverId: String) {
-        viewModelScope.launch { serverRepository.setActive(serverId) }
+    fun selectProfile(profileId: String) {
+        viewModelScope.launch {
+            if (activeProfile.value?.profileId == profileId && connector.isConnected.value) {
+                return@launch
+            }
+            serverRepository.setActive(profileId)
+            connector.requestReconnect()
+            _message.value = "正在切换到该角色"
+        }
     }
 
-    fun deleteServer(serverId: String) {
+    fun deleteProfile(profileId: String) {
         viewModelScope.launch {
-            serverRepository.delete(serverId)
-            _message.value = "服务器已删除"
+            val wasActive = activeProfile.value?.profileId == profileId
+            serverRepository.delete(profileId)
+            if (wasActive) connector.close()
+            _message.value = "角色配置已删除"
         }
     }
 
@@ -81,8 +90,9 @@ class SettingsViewModel @Inject constructor(
         format: ExportFormat,
         includeRaw: Boolean,
     ) {
-        val serverId = activeChat?.profile?.serverId ?: activeProfile.value?.serverId
-        if (serverId == null) {
+        val profileId = activeChat?.sessionInfo?.profileId
+            ?: activeProfile.value?.profileId
+        if (profileId == null) {
             _message.value = "请先连接服务器"
             return
         }
@@ -90,7 +100,7 @@ class SettingsViewModel @Inject constructor(
             try {
                 resolver.openOutputStream(uri)?.use { output ->
                     chatRepository.export(
-                        serverId = serverId,
+                        profileId = profileId,
                         format = format,
                         includeRaw = includeRaw,
                         output = output,

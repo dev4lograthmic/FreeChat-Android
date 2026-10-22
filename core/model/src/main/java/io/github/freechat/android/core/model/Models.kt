@@ -11,9 +11,13 @@ data class ServerProfile(
     val fingerprintHex: String,
     val serverName: String? = null,
     val protocolVersion: Int = 1,
+    val characterId: Long = 0,
     val characterName: String? = null,
     val worldName: String? = null,
 ) {
+    val profileId: String
+        get() = ProfileIds.of(serverId, characterId)
+
     val webSocketUrl: String
         get() {
             val hostPart = if (host.contains(':') && !host.startsWith("[")) "[$host]" else host

@@ -20,8 +20,11 @@ enum class MessageContentSource {
 data class SessionInfo(
     val serverId: String,
     val serverName: String,
+    val profileId: String,
+    val characterId: Long,
     val characterName: String,
     val worldName: String,
+    val rawCharacterJson: String,
     val sessionId: String,
     val enabledFeatures: List<String>,
 )

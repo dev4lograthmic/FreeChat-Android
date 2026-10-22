@@ -14,13 +14,13 @@ class ServerRepository(
 ) {
     val profiles: Flow<List<ServerProfile>> = profileStore.profiles
     val activeProfile: Flow<ServerProfile?> = profileStore.activeProfile
-    val activeServerId: Flow<String?> = profileStore.activeServerId
+    val activeProfileId: Flow<String?> = profileStore.activeProfileId
 
-    suspend fun get(serverId: String): ServerProfile? = profileStore.get(serverId)
+    suspend fun get(profileId: String): ServerProfile? = profileStore.get(profileId)
 
     suspend fun save(profile: ServerProfile, makeActive: Boolean = false) {
         profileStore.save(profile, makeActive)
-        val existing = database.serverDao().get(profile.serverId)
+        val existing = database.serverDao().get(profile.profileId)
         database.serverDao().upsert(
             profile.toEntity(
                 createdAt = existing?.createdAt ?: clock(),
@@ -29,24 +29,24 @@ class ServerRepository(
         )
     }
 
-    suspend fun setActive(serverId: String) {
-        profileStore.setActive(serverId)
+    suspend fun setActive(profileId: String) {
+        profileStore.setActive(profileId)
     }
 
-    suspend fun markConnected(serverId: String) {
-        database.serverDao().markConnected(serverId, clock())
+    suspend fun markConnected(profileId: String) {
+        database.serverDao().markConnected(profileId, clock())
     }
 
-    suspend fun delete(serverId: String) {
+    suspend fun delete(profileId: String) {
         database.withTransaction {
-            database.draftDao().deleteByServer(serverId)
-            database.sendJobDao().deleteByServer(serverId)
-            database.sessionDao().deleteByServer(serverId)
-            database.messageDao().deleteFtsByServer(serverId)
-            database.messageDao().deleteByServer(serverId)
-            database.conversationDao().deleteByServer(serverId)
-            database.serverDao().delete(serverId)
+            database.draftDao().deleteByProfile(profileId)
+            database.sendJobDao().deleteByProfile(profileId)
+            database.sessionDao().deleteByProfile(profileId)
+            database.messageDao().deleteFtsByProfile(profileId)
+            database.messageDao().deleteByProfile(profileId)
+            database.conversationDao().deleteByProfile(profileId)
+            database.serverDao().delete(profileId)
         }
-        profileStore.delete(serverId)
+        profileStore.delete(profileId)
     }
 }

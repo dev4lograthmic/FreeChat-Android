@@ -7,6 +7,7 @@ import io.github.freechat.android.core.model.MessageContentSource
 
 class ChatEventProcessor(
     private val repository: ChatRepository,
+    private val profileId: String,
     private val serverId: String,
     private val sessionId: String,
     private val contentSource: MessageContentSource = MessageContentSource.TEXT,
@@ -15,6 +16,7 @@ class ChatEventProcessor(
     suspend fun process(event: ChatEvent): ChatMessage? {
         val mapped = ChatEventMapper.map(
             event = event,
+            profileId = profileId,
             serverId = serverId,
             sessionId = sessionId,
             now = now(),

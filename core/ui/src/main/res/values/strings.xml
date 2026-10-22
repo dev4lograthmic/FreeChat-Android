@@ -5,6 +5,14 @@
     <string name="nav_friends">Friends</string>
     <string name="nav_me">Me</string>
 
+    <!-- Me -->
+    <string name="me_no_character">No character connected</string>
+    <string name="me_no_server">No server configured</string>
+    <string name="me_tagline">Continue your FFXIV chats on your phone.</string>
+    <string name="me_connect_summary">Scan, deep link, or enter manually</string>
+    <string name="me_settings_summary">Notifications, data, developer options</string>
+    <string name="me_footer">FreeChat Android · Unofficial FFXIV client</string>
+
     <!-- Common -->
     <string name="common_cancel">Cancel</string>
     <string name="common_create">Create</string>
@@ -28,6 +36,7 @@
     <string name="chat_search_placeholder">Search chats</string>
     <string name="chat_section_system">System notifications</string>
     <string name="chat_section_public">Public channels</string>
+    <string name="chat_section_linkshell">Linkshells</string>
     <string name="chat_section_private">Direct messages</string>
     <string name="chat_waiting_title">Connected, waiting for messages</string>
     <string name="chat_waiting_message">New messages will appear here.</string>
@@ -35,6 +44,8 @@
     <string name="chat_empty_message">System notices, public channels and direct messages will appear after you connect to a Dalamud server.</string>
     <string name="chat_search_empty_title">No messages found</string>
     <string name="chat_search_empty_message">Try another keyword, or check that the server is connected.</string>
+    <string name="chat_search_conversations">Chats</string>
+    <string name="chat_search_messages">Messages</string>
     <string name="chat_no_preview">No messages</string>
     <string name="chat_create_private">Create direct message</string>
     <string name="chat_create_private_title">New direct message</string>
@@ -50,6 +61,32 @@
         <item quantity="other">%d unread messages</item>
     </plurals>
 
+    <!-- Friends -->
+    <string name="friends_title">Friends</string>
+    <string name="friends_search_placeholder">Search friends</string>
+    <string name="friends_clear_search">Clear search</string>
+    <string name="friends_filter_all">All</string>
+    <string name="friends_filter_online">Online</string>
+    <string name="friends_filter_offline">Offline</string>
+    <string name="friends_sort">Sort friends</string>
+    <string name="friends_sort_default">Default</string>
+    <string name="friends_sort_name">Name</string>
+    <string name="friends_sort_world">Server</string>
+    <string name="friends_refresh">Refresh friends</string>
+    <string name="friends_status_online">Online</string>
+    <string name="friends_status_offline">Offline</string>
+    <string name="friends_unknown_world">Unknown world</string>
+    <string name="friends_empty_title">No friends yet</string>
+    <string name="friends_empty_message">Your friend list is empty.</string>
+    <string name="friends_no_match_title">No friends found</string>
+    <string name="friends_no_match_message">Try another keyword or filter.</string>
+    <string name="friends_not_connected_title">No server connected</string>
+    <string name="friends_not_connected_message">Connect to a Dalamud server to see your friends.</string>
+    <string name="friends_disconnected_title">Connection lost</string>
+    <string name="friends_disconnected_message">Reconnect to the server to see your friends.</string>
+    <string name="friends_error_title">Could not load friends</string>
+    <string name="friends_error_message">Check your connection and try again.</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_section_appearance">Appearance</string>
@@ -61,7 +98,28 @@
     <string name="settings_language_summary">App language and date formats</string>
     <string name="settings_language_en">English</string>
     <string name="settings_language_zh">简体中文</string>
+    <string name="settings_section_connection">Connection</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_section_developer">Developer</string>
+    <string name="settings_developer_options">Developer options</string>
+    <string name="settings_developer_summary">Subscription, message content and debug switches</string>
     <string name="settings_server_unnamed">Server</string>
+    <string name="settings_character_unnamed">Unnamed character</string>
+
+    <!-- Developer options -->
+    <string name="developer_section_character">Character</string>
+    <string name="developer_character_info">Current character info</string>
+    <string name="developer_character_info_summary">Show the raw character payload from the server</string>
+    <string name="developer_character_unavailable">Not connected to a character</string>
+    <string name="developer_section_subscriptions">Subscription sources</string>
+    <string name="developer_subscription_help">Debug only. Default: POST_HANDLE.</string>
+    <string name="developer_subscription_duplicate">Selecting POST_HANDLE and STRUCTURED together may deliver duplicate events.</string>
+    <string name="developer_section_message_content">Message content</string>
+    <string name="developer_raw_note">Raw fields are displayed as Base64 and are for debugging only.</string>
+    <string name="developer_section_switches">Debug switches</string>
+    <string name="developer_raw_commands">Allow raw commands</string>
+    <string name="developer_split_toast">Long-message split hint</string>
 
     <!-- Channel labels -->
     <string name="channel_say">Say</string>

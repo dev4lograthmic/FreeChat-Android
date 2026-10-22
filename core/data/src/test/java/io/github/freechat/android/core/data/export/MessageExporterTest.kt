@@ -10,6 +10,7 @@ class MessageExporterTest {
     private val message = ChatMessage(
         messageId = "srv:sess:1",
         conversationId = "srv:public:PARTY",
+        profileId = "srv:100",
         serverId = "srv",
         sessionId = "sess",
         sequence = 1,

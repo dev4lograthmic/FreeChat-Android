@@ -6,6 +6,7 @@ import androidx.core.content.ContextCompat
 import io.github.freechat.android.core.data.chat.ActiveChat
 import io.github.freechat.android.core.data.chat.ChatConnector
 import io.github.freechat.android.core.data.chat.ChatController
+import io.github.freechat.android.core.data.repository.ServerRepository
 import io.github.freechat.android.core.data.store.SettingsStore
 import io.github.freechat.android.core.model.ServerProfile
 import io.github.freechat.android.service.FreeChatService
@@ -27,6 +28,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 class SessionHolder @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val chatController: ChatController,
+    private val serverRepository: ServerRepository,
     private val settingsStore: SettingsStore,
 ) : ChatConnector {
     @Volatile
@@ -66,6 +68,16 @@ class SessionHolder @Inject constructor(
             pairingCodeProvider = { pairingCode },
             onPairingRequired = { onPairingRequired() },
         )
+        serverRepository.save(
+            profile.copy(
+                serverId = active.sessionInfo.serverId,
+                serverName = active.sessionInfo.serverName,
+                characterId = active.sessionInfo.characterId,
+                characterName = active.sessionInfo.characterName,
+                worldName = active.sessionInfo.worldName,
+            ),
+            makeActive = true,
+        )
         current = active
         _isConnected.value = true
         if (startService) {
@@ -97,13 +109,13 @@ class SessionHolder @Inject constructor(
     }
 
     override suspend fun requestReconnect() = withContext(Dispatchers.IO) {
-        val active = current ?: return@withContext
+        val active = current
+        current = null
+        _isConnected.value = false
+        active?.close()
         ContextCompat.startForegroundService(
             context,
             Intent(context, FreeChatService::class.java),
         )
-        active.close()
-        current = null
-        _isConnected.value = false
     }
 }

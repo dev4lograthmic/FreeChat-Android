@@ -1,16 +1,17 @@
 package io.github.freechat.android.core.data.conversation
 
 /**
- * Conversation ids are stable per server, not per game session, so local
- * history survives a Dalamud session restart.
+ * Conversation ids are stable per local character, not per game session, so
+ * local history survives a Dalamud session restart and two characters on the
+ * same server keep separate histories.
  */
 object ConversationIds {
-    fun publicChannel(serverId: String, channel: String): String =
-        "$serverId:public:$channel"
+    fun publicChannel(profileId: String, channel: String): String =
+        "$profileId:public:$channel"
 
-    fun privateChat(serverId: String, peerName: String, peerWorld: String?): String =
-        "$serverId:tell:${peerWorld.orEmpty()}:$peerName"
+    fun privateChat(profileId: String, peerName: String, peerWorld: String?): String =
+        "$profileId:tell:${peerWorld.orEmpty()}:$peerName"
 
-    fun system(serverId: String, category: String): String =
-        "$serverId:system:$category"
+    fun system(profileId: String, category: String): String =
+        "$profileId:system:$category"
 }

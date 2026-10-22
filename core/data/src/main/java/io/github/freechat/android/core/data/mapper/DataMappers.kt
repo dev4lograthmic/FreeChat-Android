@@ -15,6 +15,7 @@ fun ServerEntity.toDomain(): ServerProfile = ServerProfile(
     fingerprintHex = fingerprintHex,
     serverName = serverName,
     protocolVersion = protocolVersion,
+    characterId = characterId,
     characterName = characterName,
     worldName = worldName,
 )
@@ -23,12 +24,14 @@ fun ServerProfile.toEntity(
     createdAt: Long,
     lastConnectedAt: Long?,
 ): ServerEntity = ServerEntity(
+    profileId = profileId,
     serverId = serverId,
     host = host,
     port = port,
     fingerprintHex = fingerprintHex,
     serverName = serverName,
     protocolVersion = protocolVersion,
+    characterId = characterId,
     characterName = characterName,
     worldName = worldName,
     createdAt = createdAt,
@@ -37,6 +40,7 @@ fun ServerProfile.toEntity(
 
 fun ConversationEntity.toDomain(): ChatConversation = ChatConversation(
     id = id,
+    profileId = profileId,
     serverId = serverId,
     type = runCatching { ConversationType.valueOf(type) }
         .getOrDefault(ConversationType.PUBLIC_CHANNEL),
@@ -51,6 +55,7 @@ fun ConversationEntity.toDomain(): ChatConversation = ChatConversation(
 
 fun ChatConversation.toEntity(): ConversationEntity = ConversationEntity(
     id = id,
+    profileId = profileId,
     serverId = serverId,
     type = type.name,
     channel = channel,
@@ -65,6 +70,7 @@ fun ChatConversation.toEntity(): ConversationEntity = ConversationEntity(
 fun MessageEntity.toDomain(): ChatMessage = ChatMessage(
     messageId = messageId,
     conversationId = conversationId,
+    profileId = profileId,
     serverId = serverId,
     sessionId = sessionId,
     sequence = sequence,
@@ -83,6 +89,7 @@ fun MessageEntity.toDomain(): ChatMessage = ChatMessage(
 fun ChatMessage.toEntity(): MessageEntity = MessageEntity(
     messageId = messageId,
     conversationId = conversationId,
+    profileId = profileId,
     serverId = serverId,
     sessionId = sessionId,
     sequence = sequence,

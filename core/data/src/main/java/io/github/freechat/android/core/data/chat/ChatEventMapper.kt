@@ -18,6 +18,7 @@ data class MappedChatEvent(
 object ChatEventMapper {
     fun map(
         event: ChatEvent,
+        profileId: String,
         serverId: String,
         sessionId: String,
         now: Long = System.currentTimeMillis(),
@@ -59,11 +60,13 @@ object ChatEventMapper {
         }
         val conversationId = when (type) {
             ConversationType.PRIVATE ->
-                ConversationIds.privateChat(serverId, peerName, peerWorld)
+                ConversationIds.privateChat(profileId, peerName, peerWorld)
             ConversationType.SYSTEM ->
-                ConversationIds.system(serverId, conversationChannel)
-            ConversationType.PUBLIC_CHANNEL ->
-                ConversationIds.publicChannel(serverId, channel)
+                ConversationIds.system(profileId, conversationChannel)
+            ConversationType.PUBLIC_CHANNEL,
+            ConversationType.LINKSHELL,
+            ->
+                ConversationIds.publicChannel(profileId, channel)
         }
 
         val displayName = when (type) {
@@ -72,12 +75,18 @@ object ChatEventMapper {
             ConversationType.PUBLIC_CHANNEL -> event.channelName
                 .takeIf { it.isNotBlank() }
                 ?: ConversationLabels.publicLabel(channel)
+            // Linkshells are only shown once the game reports their name.
+            ConversationType.LINKSHELL -> event.channelName.trim()
         }
 
-        val messageId = event.messageId.ifBlank { "$serverId:$sessionId:${event.sequence}" }
+        val serverMessageId = event.messageId.ifBlank {
+            "$serverId:$sessionId:${event.sequence}"
+        }
+        val messageId = "$profileId:$serverMessageId"
         val message = ChatMessage(
             messageId = messageId,
             conversationId = conversationId,
+            profileId = profileId,
             serverId = serverId,
             sessionId = sessionId,
             sequence = event.sequence,
@@ -88,12 +97,13 @@ object ChatEventMapper {
             senderWorld = senderWorld,
             text = text,
             outgoing = event.outgoing,
-            dedupeKey = "$timestamp:${event.logKind}:${sender.contentId}:$text",
+            dedupeKey = "$profileId:$timestamp:${event.logKind}:${sender.contentId}:$text",
             rawSender = event.rawSender.takeIf { it.size() > 0 }?.toByteArray(),
             rawMessage = event.rawMessage.takeIf { it.size() > 0 }?.toByteArray(),
         )
         val conversation = ChatConversation(
             id = conversationId,
+            profileId = profileId,
             serverId = serverId,
             type = type,
             channel = conversationChannel,
@@ -123,7 +133,11 @@ object ChatEventMapper {
         ChatChannel.CHAT_CHANNEL_ECHO,
         -> ConversationType.SYSTEM
 
-        else -> ConversationType.PUBLIC_CHANNEL
+        else -> if (ConversationLabels.isLinkshell(toChannelName())) {
+            ConversationType.LINKSHELL
+        } else {
+            ConversationType.PUBLIC_CHANNEL
+        }
     }
 
     private fun rawText(value: com.google.protobuf.ByteString): String? {
