@@ -165,6 +165,7 @@
     <string name="channel_cross_linkshell_8">Cross-world Linkshell 8</string>
     <string name="channel_novice_network">Novice Network</string>
     <string name="channel_pvp_team">PvP Team</string>
+    <string name="channel_other">Other</string>
     <string name="channel_emote">Emote</string>
     <string name="system_system">System</string>
     <string name="system_error">Error</string>

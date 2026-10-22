@@ -42,8 +42,6 @@ class FriendsViewModel @Inject constructor(
     private val _state = MutableStateFlow(FriendsUiState())
     val state: StateFlow<FriendsUiState> = _state.asStateFlow()
 
-    val connectionStatus: StateFlow<ConnectionStatus> = connector.connectionStatus
-
     init {
         viewModelScope.launch {
             connector.connectionStatus.collect { status ->

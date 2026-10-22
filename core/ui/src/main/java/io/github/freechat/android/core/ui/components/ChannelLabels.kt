@@ -55,6 +55,7 @@ fun chatChannelLabel(
         "NOVICE_NETWORK" -> R.string.channel_novice_network
         "PVP_TEAM" -> R.string.channel_pvp_team
         "EMOTE" -> R.string.channel_emote
+        "OTHER" -> R.string.channel_other
         "SYSTEM" -> R.string.system_system
         "ERROR" -> R.string.system_error
         "NPC" -> R.string.system_npc

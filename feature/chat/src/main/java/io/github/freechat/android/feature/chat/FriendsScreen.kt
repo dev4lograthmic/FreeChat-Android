@@ -54,10 +54,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.freechat.android.core.model.ConnectionStatus
 import io.github.freechat.android.core.model.FriendInfo
 import io.github.freechat.android.core.ui.R
-import io.github.freechat.android.core.ui.components.ConnectionStatusPill
 import io.github.freechat.android.core.ui.components.FreeChatAvatar
 import io.github.freechat.android.core.ui.components.FreeChatEmptyState
 import io.github.freechat.android.core.ui.theme.FreeChatTheme
@@ -87,14 +85,12 @@ fun FriendsRoute(
     viewModel: FriendsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { viewModel.load() }
 
     FriendsScreen(
         state = state,
-        connectionStatus = connectionStatus,
         onRefresh = { viewModel.load(force = true) },
         onOpenPairing = onOpenPairing,
         onOpenFriend = { friend ->
@@ -109,7 +105,6 @@ fun FriendsRoute(
 @Composable
 fun FriendsScreen(
     state: FriendsUiState,
-    connectionStatus: ConnectionStatus,
     onRefresh: () -> Unit,
     onOpenPairing: () -> Unit,
     onOpenFriend: (FriendInfo) -> Unit,
@@ -166,10 +161,6 @@ fun FriendsScreen(
                     )
                 },
                 actions = {
-                    ConnectionStatusPill(
-                        status = connectionStatus,
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
                     IconButton(
                         onClick = onRefresh,
                         enabled = !state.isLoading,
@@ -492,7 +483,6 @@ private fun FriendsScreenPreview() {
                 friends = previewFriends(),
                 loaded = true,
             ),
-            connectionStatus = ConnectionStatus.ONLINE,
             onRefresh = {},
             onOpenPairing = {},
             onOpenFriend = {},
@@ -506,7 +496,6 @@ private fun FriendsScreenEmptyPreview() {
     FreeChatTheme {
         FriendsScreen(
             state = FriendsUiState(loaded = true),
-            connectionStatus = ConnectionStatus.OFFLINE,
             onRefresh = {},
             onOpenPairing = {},
             onOpenFriend = {},
@@ -523,7 +512,6 @@ private fun FriendsScreenErrorPreview() {
                 error = FriendsError.NOT_CONNECTED,
                 loaded = true,
             ),
-            connectionStatus = ConnectionStatus.OFFLINE,
             onRefresh = {},
             onOpenPairing = {},
             onOpenFriend = {},

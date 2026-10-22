@@ -165,6 +165,7 @@
     <string name="channel_cross_linkshell_8">跨服通讯贝 8</string>
     <string name="channel_novice_network">新人频道</string>
     <string name="channel_pvp_team">PVP 团队</string>
+    <string name="channel_other">其他</string>
     <string name="channel_emote">情感动作</string>
     <string name="system_system">系统</string>
     <string name="system_error">错误</string>

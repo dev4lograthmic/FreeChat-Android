@@ -11,6 +11,7 @@ object ConversationLabels {
         "NOVICE_NETWORK" to "新人频道",
         "PVP_TEAM" to "PVP 团队",
         "EMOTE" to "情感动作",
+        "OTHER" to "其他",
     )
 
     /**
